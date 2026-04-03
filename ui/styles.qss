@@ -1,0 +1,495 @@
+/* DEEPDIVE — premium glass UI (dark + gold; QSS-driven) */
+
+/* ---- Base ---- */
+QMainWindow {
+    background-color: #050505;
+    color: #f5f2ed;
+}
+
+#mainCentral {
+    background-color: #050505;
+    color: #f5f2ed;
+}
+
+QLabel {
+    color: #f5f2ed;
+    background-color: transparent;
+}
+
+/* ---- Left panel header (compass + title) ---- */
+QFrame#leftPanelHeader {
+    background-color: transparent;
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+QLabel#compassRing {
+    min-width: 40px;
+    max-width: 40px;
+    min-height: 40px;
+    max-height: 40px;
+    border-radius: 20px;
+    border: 1px solid #D4AF37;
+    background-color: rgba(212, 175, 55, 0.06);
+    color: #D4AF37;
+    font-size: 17px;
+    font-weight: 300;
+    padding: 0;
+    margin: 0;
+}
+
+QLabel#titleBrand {
+    font-family: "Cormorant Garamond", "Palatino Linotype", Georgia, "Times New Roman", serif;
+    font-size: 30px;
+    font-weight: 300;
+    letter-spacing: 0.02em;
+    line-height: 1.15;
+    color: #f5f2ed;
+}
+
+QLabel#titleDirectory {
+    font-family: "Cormorant Garamond", "Palatino Linotype", Georgia, "Times New Roman", serif;
+    font-size: 26px;
+    font-weight: 300;
+    letter-spacing: 0.01em;
+    color: #f5f2ed;
+}
+
+/* ---- Right directory header ---- */
+QFrame#rightPanelHeader {
+    background-color: transparent;
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    padding-bottom: 4px;
+    margin-bottom: 4px;
+}
+
+QLabel#microLabel {
+    font-family: "Montserrat", "Segoe UI", sans-serif;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: #888888;
+}
+
+QLabel#labelRecordCount {
+    font-family: "Montserrat", "Segoe UI", sans-serif;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #888888;
+    padding-top: 4px;
+}
+
+QLabel#sidebarEmptyHint {
+    font-family: "Montserrat", "Segoe UI", sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.45;
+    color: #888888;
+    padding: 10px 2px 4px 2px;
+}
+
+QLabel#microLabelAccent {
+    font-family: "Montserrat", "Segoe UI", sans-serif;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #D4AF37;
+}
+
+QLabel#sectionTitle {
+    font-family: "Montserrat", "Segoe UI", sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #D4AF37;
+    margin-top: 4px;
+    margin-bottom: 2px;
+}
+
+/* ---- Glass side panels (deep translucent panels) ---- */
+QFrame#glassPanelLeft {
+    background-color: rgba(5, 5, 5, 191);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 14px;
+}
+
+QFrame#glassPanelRight {
+    background-color: rgba(5, 5, 5, 191);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 14px;
+}
+
+/* ---- Map: full-bleed column (no chrome frame) ---- */
+QFrame#mapFrame {
+    background-color: #050505;
+    border: none;
+    border-radius: 0;
+}
+
+QFrame#mapOuter {
+    background-color: #050505;
+    border: none;
+}
+
+QWebEngineView#mapWebView {
+    background-color: #050505;
+    border: none;
+}
+
+QLabel#mapPlaceholder {
+    font-family: "Montserrat", "Segoe UI", sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    color: #888888;
+}
+
+/* ---- Inputs (elite underline) ---- */
+QLineEdit#lineEditElite {
+    font-family: "Montserrat", "Segoe UI", sans-serif;
+    font-size: 13px;
+    color: #f5f2ed;
+    background-color: transparent;
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 0;
+    padding: 10px 0 12px 0;
+    min-height: 22px;
+    selection-background-color: #D4AF37;
+    selection-color: #050505;
+}
+
+QLineEdit#lineEditElite:hover {
+    border-bottom-color: rgba(255, 255, 255, 0.28);
+}
+
+QLineEdit#lineEditElite:focus {
+    border-bottom: 2px solid #D4AF37;
+}
+
+QLineEdit#lineEditElite::placeholder {
+    color: #555555;
+}
+
+/* ---- Buttons ---- */
+QPushButton#btnElite {
+    font-family: "Montserrat", "Segoe UI", sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    color: #f5f2ed;
+    background-color: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+    padding: 13px 24px;
+    min-height: 20px;
+}
+
+QPushButton#btnElite:hover {
+    color: #D4AF37;
+    border: 1px solid #D4AF37;
+    background-color: rgba(212, 175, 55, 0.06);
+}
+
+QPushButton#btnElite:pressed {
+    background-color: rgba(212, 175, 55, 0.14);
+}
+
+QPushButton#btnElite:focus {
+    outline: none;
+    border: 1px solid rgba(212, 175, 55, 0.65);
+}
+
+/* ---- Separators ---- */
+QFrame#dirSeparator {
+    background-color: rgba(255, 255, 255, 0.06);
+    border: none;
+    max-height: 1px;
+    min-height: 1px;
+    margin-top: 8px;
+    margin-bottom: 8px;
+}
+
+QScrollArea#dirScroll {
+    background-color: transparent;
+    border: none;
+}
+
+QWidget#dirScrollContent {
+    background-color: transparent;
+}
+
+/* ---- Directory table ---- */
+QTableWidget#directoryTable {
+    background-color: transparent;
+    alternate-background-color: rgba(255, 255, 255, 0.035);
+    color: #f5f2ed;
+    border: none;
+    gridline-color: transparent;
+    font-family: "Montserrat", "Segoe UI", sans-serif;
+    font-size: 12px;
+    outline: none;
+}
+
+QTableWidget#directoryTable::item {
+    padding: 14px 10px;
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+QTableWidget#directoryTable::item:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+QTableWidget#directoryTable::item:selected {
+    background-color: rgba(212, 175, 55, 0.28);
+    color: #f5f2ed;
+    border-bottom: 1px solid rgba(212, 175, 55, 0.45);
+}
+
+QTableWidget#directoryTable::item:selected:hover {
+    background-color: rgba(212, 175, 55, 0.34);
+    border-bottom: 1px solid rgba(212, 175, 55, 0.55);
+}
+
+QHeaderView::section {
+    background-color: rgba(0, 0, 0, 0.25);
+    color: #888888;
+    font-family: "Montserrat", "Segoe UI", sans-serif;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 12px 10px 10px 10px;
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+QTableWidget#directoryTable QScrollBar:horizontal {
+    background: transparent;
+    height: 6px;
+    margin: 0 4px 4px 4px;
+}
+
+QTableWidget#directoryTable QScrollBar::handle:horizontal {
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 2px;
+    min-width: 32px;
+}
+
+QTableWidget#directoryTable QScrollBar::handle:horizontal:hover {
+    background: rgba(212, 175, 55, 0.45);
+}
+
+QTableWidget#directoryTable QScrollBar::add-line:horizontal,
+QTableWidget#directoryTable QScrollBar::sub-line:horizontal {
+    width: 0;
+}
+
+/* ---- Directory card list (reference layout) ---- */
+QListWidget#directoryList {
+    background-color: transparent;
+    border: none;
+    outline: none;
+    padding: 0;
+}
+
+QListWidget#directoryList::item {
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin: 0 0 6px 0;
+}
+
+QListWidget#directoryList::item:selected {
+    background: transparent;
+}
+
+QFrame#directoryRowCard {
+    background-color: #0a0a0a;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+}
+
+QFrame#directoryRowCard:hover {
+    border-color: rgba(255, 255, 255, 0.14);
+    background-color: #0c0c0c;
+}
+
+QFrame#directoryRowCard[active="true"] {
+    background-color: rgba(212, 175, 55, 0.12);
+    border: 1px solid rgba(212, 175, 55, 0.45);
+}
+
+QLabel#directoryAvatar {
+    border-radius: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background-color: #111;
+}
+
+QLabel#directoryRowTitle {
+    font-family: "Montserrat", "Segoe UI", sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    color: #f5f2ed;
+}
+
+QLabel#directoryRowCoords {
+    font-family: "Montserrat", "Segoe UI", sans-serif;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    color: #888888;
+}
+
+QLabel#directoryRowTier {
+    font-family: "Montserrat", "Segoe UI", sans-serif;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    color: #888888;
+}
+
+QLabel#directoryRowValue {
+    font-family: "Montserrat", "Segoe UI", sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: #f5f2ed;
+}
+
+QFrame#directoryRowCard[active="true"] QLabel#directoryRowValue {
+    color: #D4AF37;
+}
+
+QLabel#dirRow {
+    font-family: "Montserrat", "Segoe UI", sans-serif;
+    font-size: 12px;
+    color: #b8b4a8;
+    padding: 10px 4px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+QLabel#dirRowMuted {
+    font-family: "Montserrat", "Segoe UI", sans-serif;
+    font-size: 10px;
+    color: #666666;
+    padding: 4px 4px 12px 4px;
+}
+
+/* ---- Scrollbars ---- */
+QScrollBar:vertical {
+    background: transparent;
+    width: 3px;
+    margin: 4px 0 4px 0;
+}
+
+QScrollBar::handle:vertical {
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 2px;
+    min-height: 28px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background: rgba(212, 175, 55, 0.5);
+}
+
+QScrollBar::add-line:vertical,
+QScrollBar::sub-line:vertical {
+    height: 0;
+}
+
+/* ---- Left sidebar scroll ---- */
+QScrollArea#sidebarScroll {
+    background-color: transparent;
+    border: none;
+}
+
+QWidget#sidebarScrollInner {
+    background-color: transparent;
+}
+
+QWidget#leftSidebarRoot {
+    background-color: transparent;
+}
+
+/* ---- Filter slider ---- */
+QSlider#sliderFilter::groove:horizontal {
+    height: 3px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+}
+
+QSlider#sliderFilter::handle:horizontal {
+    width: 14px;
+    height: 14px;
+    margin: -6px 0;
+    background: #D4AF37;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 7px;
+}
+
+QSlider#sliderFilter::handle:horizontal:hover {
+    background: #e8c85c;
+    border-color: rgba(255, 255, 255, 0.45);
+}
+
+QSlider#sliderFilter::sub-page:horizontal {
+    background: rgba(212, 175, 55, 0.25);
+    border-radius: 2px;
+    height: 3px;
+}
+
+/* ---- Sort dropdown ---- */
+QComboBox#comboElite {
+    font-family: "Montserrat", "Segoe UI", sans-serif;
+    font-size: 11px;
+    color: #f5f2ed;
+    background-color: transparent;
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 0;
+    padding: 10px 28px 12px 0;
+    min-height: 22px;
+}
+
+QComboBox#comboElite:hover {
+    border-bottom-color: rgba(212, 175, 55, 0.55);
+}
+
+QComboBox#comboElite:focus {
+    border-bottom: 2px solid #D4AF37;
+}
+
+QComboBox#comboElite::drop-down {
+    border: none;
+    width: 22px;
+}
+
+QComboBox#comboElite::down-arrow {
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid #888888;
+    margin-right: 2px;
+}
+
+QComboBox#comboElite:hover::down-arrow {
+    border-top-color: #D4AF37;
+}
+
+QComboBox#comboElite QAbstractItemView {
+    background-color: #0c0c0c;
+    color: #f5f2ed;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    selection-background-color: rgba(212, 175, 55, 0.22);
+    selection-color: #f5f2ed;
+    outline: none;
+    padding: 4px;
+}

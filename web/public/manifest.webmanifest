@@ -1,0 +1,11 @@
+{
+  "name": "DeepDive Web",
+  "short_name": "DeepDive",
+  "description": "Map and explore geographic data — companion to the DeepDive desktop app.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#050505",
+  "theme_color": "#050505"
+}

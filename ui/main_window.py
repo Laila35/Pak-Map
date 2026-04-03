@@ -1,0 +1,218 @@
+"""Main application window — layout and QSS-driven styling."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+from PyQt5.QtCore import QUrl, Qt
+from PyQt5.QtWebChannel import QWebChannel
+from PyQt5.QtWebEngineWidgets import QWebEngineSettings, QWebEngineView
+from PyQt5.QtWidgets import (
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QMainWindow,
+    QSizePolicy,
+    QVBoxLayout,
+    QWidget,
+)
+
+from ui.directory_list import DirectoryListWidget
+from ui.map_bridge import MapBridge
+from ui.sidebar import LeftSidebar
+
+_MAP_INDEX = Path(__file__).resolve().parent.parent / "map" / "index.html"
+
+
+class MainWindow(QMainWindow):
+    def __init__(self) -> None:
+        super().__init__()
+        self.setWindowTitle("DEEPDIVE")
+        self.setMinimumSize(900, 600)
+
+        central = QWidget()
+        central.setObjectName("mainCentral")
+        self.setCentralWidget(central)
+
+        root = QHBoxLayout(central)
+        root.setContentsMargins(10, 12, 10, 12)
+        root.setSpacing(10)
+
+        self._web_view: QWebEngineView | None = None
+        self._map_bridge: MapBridge | None = None
+
+        root.addWidget(self._build_left_panel())
+        root.addWidget(self._build_center_panel(), stretch=1)
+        root.addWidget(self._build_right_panel())
+
+    def _build_left_panel(self) -> QFrame:
+        glass = QFrame()
+        glass.setObjectName("glassPanelLeft")
+        glass.setFixedWidth(320)
+        glass.setFrameShape(QFrame.NoFrame)
+        glass.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding)
+
+        layout = QVBoxLayout(glass)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        header = QFrame()
+        header.setObjectName("leftPanelHeader")
+        head_lay = QVBoxLayout(header)
+        head_lay.setContentsMargins(24, 22, 24, 18)
+        head_lay.setSpacing(0)
+
+        row = QHBoxLayout()
+        row.setSpacing(16)
+        row.setContentsMargins(0, 0, 0, 0)
+
+        compass = QLabel("✧")
+        compass.setObjectName("compassRing")
+        compass.setAlignment(Qt.AlignCenter)
+
+        title_col = QVBoxLayout()
+        title_col.setSpacing(0)
+        title_col.setContentsMargins(0, 0, 0, 0)
+
+        brand = QLabel()
+        brand.setObjectName("titleBrand")
+        brand.setTextFormat(Qt.RichText)
+        brand.setText(
+            "<span style='color:#f5f2ed;'>DEEP</span>"
+            "<span style='color:#D4AF37;font-style:italic;'>DIVE</span>"
+        )
+
+        sub = QLabel("Global Intelligence Mapping")
+        sub.setObjectName("microLabel")
+
+        title_col.addWidget(brand)
+        title_col.addSpacing(14)
+        title_col.addWidget(sub)
+
+        row.addWidget(compass, 0, Qt.AlignTop)
+        row.addLayout(title_col, 1)
+        head_lay.addLayout(row)
+
+        layout.addWidget(header)
+
+        self.left_sidebar = LeftSidebar()
+        layout.addWidget(self.left_sidebar, stretch=1)
+        return glass
+
+    def _build_center_panel(self) -> QFrame:
+        outer = QFrame()
+        outer.setObjectName("mapOuter")
+        outer.setFrameShape(QFrame.NoFrame)
+
+        outer_l = QVBoxLayout(outer)
+        outer_l.setContentsMargins(0, 0, 0, 0)
+        outer_l.setSpacing(0)
+
+        map_frame = QFrame()
+        map_frame.setObjectName("mapFrame")
+        map_frame.setFrameShape(QFrame.NoFrame)
+
+        inner = QVBoxLayout(map_frame)
+        inner.setContentsMargins(0, 0, 0, 0)
+
+        self._web_view = QWebEngineView()
+        self._web_view.setObjectName("mapWebView")
+        self._web_view.setStyleSheet("background-color: #050505; border: none;")
+        self._web_view.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+        page = self._web_view.page()
+        settings = page.settings()
+        settings.setAttribute(QWebEngineSettings.LocalContentCanAccessRemoteUrls, True)
+        settings.setAttribute(QWebEngineSettings.JavascriptEnabled, True)
+        settings.setAttribute(QWebEngineSettings.LocalContentCanAccessFileUrls, True)
+
+        self._map_bridge = MapBridge()
+        channel = QWebChannel(page)
+        channel.registerObject("bridge", self._map_bridge)
+        page.setWebChannel(channel)
+
+        inner.addWidget(self._web_view, stretch=1)
+
+        self._web_view.load(QUrl.fromLocalFile(str(_MAP_INDEX.resolve())))
+
+        outer_l.addWidget(map_frame, stretch=1)
+        return outer
+
+    @property
+    def web_view(self) -> QWebEngineView | None:
+        return self._web_view
+
+    @property
+    def map_bridge(self) -> MapBridge | None:
+        return self._map_bridge
+
+    def send_map_dataset(self, data: list, selected_id: str | None = None) -> None:
+        """Python → JS: push marker payloads; ``selected_id`` keeps highlight; map fits bounds to all points."""
+        if self._web_view is None:
+            return
+        payload = json.dumps(data)
+        sel = json.dumps(selected_id)
+        self._web_view.page().runJavaScript(f"addMarkers({payload}, {sel});")
+
+    def focus_map_marker(self, marker_id: str, *, fly: bool = True) -> None:
+        """Python → JS: center on marker; ``fly=False`` only opens popup (e.g. after marker rebuild)."""
+        if self._web_view is None:
+            return
+        fly_js = "true" if fly else "false"
+        self._web_view.page().runJavaScript(
+            f"focusMarker({json.dumps(marker_id)}, {{ fly: {fly_js} }});"
+        )
+
+    def highlight_marker_on_map(self, marker_id: str, *, fly: bool = True) -> None:
+        """Python → JS: restyle markers so ``marker_id`` is highlighted (table → map)."""
+        if self._web_view is None:
+            return
+        fly_js = "true" if fly else "false"
+        self._web_view.page().runJavaScript(
+            f"highlightMarkerOnMap({json.dumps(marker_id)}, {{ fly: {fly_js} }});"
+        )
+
+    def _build_right_panel(self) -> QFrame:
+        glass = QFrame()
+        glass.setObjectName("glassPanelRight")
+        glass.setFixedWidth(440)
+        glass.setFrameShape(QFrame.NoFrame)
+        glass.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding)
+
+        layout = QVBoxLayout(glass)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        header = QFrame()
+        header.setObjectName("rightPanelHeader")
+        head_lay = QVBoxLayout(header)
+        head_lay.setContentsMargins(24, 22, 24, 18)
+        head_lay.setSpacing(8)
+
+        title = QLabel("Directory")
+        title.setObjectName("titleDirectory")
+        head_lay.addWidget(title)
+
+        self.label_record_count = QLabel("0 Records Found")
+        self.label_record_count.setObjectName("labelRecordCount")
+        head_lay.addWidget(self.label_record_count)
+
+        layout.addWidget(header)
+
+        sep = QFrame()
+        sep.setObjectName("dirSeparator")
+        sep.setFrameShape(QFrame.HLine)
+        layout.addWidget(sep)
+
+        body = QWidget()
+        body_l = QVBoxLayout(body)
+        body_l.setContentsMargins(24, 8, 20, 20)
+        body_l.setSpacing(0)
+
+        self.data_table = DirectoryListWidget()
+        body_l.addWidget(self.data_table, stretch=1)
+
+        layout.addWidget(body, stretch=1)
+
+        return glass

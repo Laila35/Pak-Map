@@ -1,0 +1,37 @@
+---
+description: Source of truth — Python desktop app (PyQt + Leaflet); no React/Vite web app
+alwaysApply: true
+---
+
+# datamap-explorer — desktop stack only
+
+This repository is a **Python 3.10+ desktop application**, not a hosted React/SPA.
+
+## Authoritative stack
+
+- **Python 3.10+** with type hints
+- **PyQt5** — main window, sidebar, directory UI, QSS styling
+- **PyQtWebEngine** — `QWebEngineView` embedding the map page
+- **Leaflet 1.9** (loaded in `map/index.html` from CDN) — markers, popups, pan/zoom
+- **Esri World Imagery** — basemap tiles (ArcGIS URL in `map/index.html`)
+- **Qt WebChannel** + `qwebchannel.js` — Python ↔ JavaScript (`ui/map_bridge.py`, `runJavaScript`)
+- **CSV / JSON** — `utils/parser.py`, export in `main.py`
+- **`DataPoint`** dataclass — `models/datapoint.py`
+
+## Project layout (do not replace with a web app)
+
+- `main.py` — entry, `AppController`, filter/sort/map/table wiring
+- `ui/` — `main_window.py`, `sidebar.py`, `directory_list.py`, `datatable.py` (legacy table widget if present), `map_bridge.py`, `styles.qss`
+- `map/index.html` — Leaflet map (local file loaded by WebEngine)
+- `utils/` — `parser.py`, `dataset_ops.py`
+- `models/` — `datapoint.py`
+- `requirements-pyqt.txt` — `PyQt5`, `PyQtWebEngine`
+
+## Do not do here
+
+- Do **not** add or restore **React, Vite, Next.js**, npm `package.json` web builds, **Vercel** configs, or SPA entry HTML at repo root for the map UI.
+- Do **not** suggest deploying this app as the primary workflow; it is run with `python main.py` after `pip install -r requirements-pyqt.txt`.
+
+## When adding features
+
+Extend **Python controllers**, **PyQt widgets**, **`map/index.html` JS**, and **parsers** only. Keep a single source of truth for data in the controller (`self.data` / filtered view pattern).

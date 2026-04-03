@@ -1,0 +1,20 @@
+# Python
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Legacy / accidental JS builds (this project is PyQt-only)
+node_modules/
+build/
+dist/
+coverage/
+
+# OS / editor
+.DS_Store
+*.log
+.env
+.env.local
