@@ -61,6 +61,117 @@
     return null;
   }
 
+  // ---- Wikipedia thumbnail fetch (cached) for POI popups ----
+  var wikiSummaryCache = {}; // lower(query) -> { imgUrl: string|null, extract: string|null }
+
+  function escapeHtml(s) {
+    return String(s || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function titleMixHtml(title) {
+    var t = String(title || '').trim();
+    if (!t) return '';
+    var parts = t.split(/\s+/);
+    if (parts.length === 1) {
+      return '<span class="dm-popup-title-gold">' + escapeHtml(t) + '</span>';
+    }
+    var first = parts.shift();
+    var rest = parts.join(' ');
+    return (
+      '<span class="dm-popup-title-gold">' + escapeHtml(first) + '</span>' +
+      ' ' +
+      '<span class="dm-popup-title-white">' + escapeHtml(rest) + '</span>'
+    );
+  }
+
+  async function getWikiSummary(query) {
+    try {
+      var raw = String(query || '').trim();
+      if (!raw) return { imgUrl: null, extract: null };
+
+      var key = raw.toLowerCase();
+      if (wikiSummaryCache[key]) return wikiSummaryCache[key];
+
+      var url = 'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(raw);
+      var res = await fetch(url, { headers: { accept: 'application/json' } });
+      if (!res || !res.ok) {
+        wikiSummaryCache[key] = { imgUrl: null, extract: null };
+        return wikiSummaryCache[key];
+      }
+      var data = await res.json();
+      var imgUrl =
+        data && data.thumbnail && typeof data.thumbnail.source === 'string'
+          ? String(data.thumbnail.source)
+          : null;
+      var extract = data && typeof data.extract === 'string' ? String(data.extract) : null;
+      if (extract && extract.length > 220) extract = extract.slice(0, 217) + '...';
+
+      wikiSummaryCache[key] = { imgUrl: imgUrl, extract: extract };
+      return wikiSummaryCache[key];
+    } catch (err) {
+      return { imgUrl: null, extract: null };
+    }
+  }
+
+  function poiPopupHtml(placeName, kind, wiki, isLoading, ll, tags) {
+    wiki = wiki || {};
+    var imgTop = isLoading
+      ? '<div class="dm-popup-noimg">Loading image...</div>'
+      : (wiki.imgUrl
+          ? '<img class="dm-popup-img" src="' + escapeHtml(wiki.imgUrl) + '" alt="" referrerpolicy="no-referrer" />'
+          : '<div class="dm-popup-noimg">No image available</div>');
+    var desc = wiki.extract ? String(wiki.extract) : '';
+
+    var lat = ll && isFinite(ll.lat) ? Number(ll.lat).toFixed(4) : '';
+    var lng = ll && isFinite(ll.lng) ? Number(ll.lng).toFixed(4) : '';
+    var addrParts = [];
+    if (tags) {
+      if (tags['addr:housenumber']) addrParts.push(String(tags['addr:housenumber']));
+      if (tags['addr:street']) addrParts.push(String(tags['addr:street']));
+      if (tags['addr:suburb']) addrParts.push(String(tags['addr:suburb']));
+      if (tags['addr:city']) addrParts.push(String(tags['addr:city']));
+      if (tags['addr:district']) addrParts.push(String(tags['addr:district']));
+      if (tags['addr:state']) addrParts.push(String(tags['addr:state']));
+    }
+    var address = addrParts.length ? addrParts.join(', ') : '';
+    var hours = tags && tags.opening_hours ? String(tags.opening_hours) : '';
+    var phone = tags && (tags.phone || tags['contact:phone']) ? String(tags.phone || tags['contact:phone']) : '';
+    var website = tags && (tags.website || tags['contact:website']) ? String(tags.website || tags['contact:website']) : '';
+
+    function row(label, value, isLink) {
+      if (!value) return '';
+      var v = escapeHtml(value);
+      if (isLink) {
+        var href = value;
+        if (!/^https?:\/\//i.test(href)) href = 'https://' + href;
+        v = '<a href="' + escapeHtml(href) + '" target="_blank" rel="noreferrer noopener" style="color:#FFD700;text-decoration:none">' + v + '</a>';
+      }
+      return '<div class="dm-popup-meta">' + escapeHtml(label) + ': <span class="dm-popup-meta-strong">' + v + '</span></div>';
+    }
+
+    return (
+      '<div class="dm-popup">' +
+        '<div class="dm-popup-pad">' +
+          '<div class="dm-popup-media">' + imgTop + '</div>' +
+          '<div class="dm-popup-title">' + titleMixHtml(placeName) + '</div>' +
+          (desc ? '<div class="dm-popup-desc">' + escapeHtml(desc) + '</div>' : '<div class="dm-popup-desc dm-popup-desc-muted">No description available</div>') +
+          (kind ? '<div class="dm-popup-meta">Type: <span class="dm-popup-meta-strong">' + escapeHtml(kind) + '</span></div>' : '') +
+          row('Lat', lat, false) +
+          row('Lng', lng, false) +
+          row('Address', address, false) +
+          row('Hours', hours, false) +
+          row('Phone', phone, false) +
+          row('Website', website, true) +
+        '</div>' +
+      '</div>'
+    );
+  }
+
   function renderPois(items) {
     dm.poiLayer.clearLayers();
     dm.roadLayer.clearLayers();
@@ -69,7 +180,12 @@
       var ll = elementLatLng(e);
       if (!ll) return;
       var tags = e.tags || {};
-      var name = tags.name ? String(tags.name) : '';
+      var name =
+        (tags.name ? String(tags.name) : '') ||
+        (tags['name:en'] ? String(tags['name:en']) : '') ||
+        (tags.official_name ? String(tags.official_name) : '') ||
+        (tags.operator ? String(tags.operator) : '') ||
+        (tags.brand ? String(tags.brand) : '');
       var kind = labelForPoi(tags);
       var spec = iconSpecForElement(e);
       var icon = divIconFor(spec);
@@ -77,24 +193,42 @@
       var layer = (e.type === 'way' && tags.ref) ? dm.roadLayer : dm.poiLayer;
       var m = L.marker(ll, { icon: icon, keyboard: false, riseOnHover: true }).addTo(layer);
 
-      var html = '<div class="poi-tooltip">' +
-        '<div class="poi-name">' + (name || kind) + '</div>' +
-        (name ? '<div class="poi-kind">' + kind + '</div>' : '') +
-      '</div>';
-      m.bindTooltip(html, { sticky: true, direction: 'top', opacity: 1, className: 'map-tooltip-card', offset: [0, -10] });
+      // Treat every icon like a button: click to zoom + show details.
+      var placeName = (name || kind);
+      // Improve Wikipedia hit-rate: "CMH Hospital Rawalpindi, Pakistan"
+      var cityHint =
+        (tags['addr:city'] ? String(tags['addr:city']) : '') ||
+        (tags['is_in:city'] ? String(tags['is_in:city']) : '') ||
+        (tags['addr:district'] ? String(tags['addr:district']) : '');
+      var wikiQuery = placeName;
+      if (cityHint && cityHint.trim()) wikiQuery += ' ' + cityHint.trim();
+      wikiQuery += ' Pakistan';
 
-      // Treat every icon like a button: click to zoom + show name/details.
-      var pop = '<div style="font-family:Segoe UI,system-ui,sans-serif;font-size:13px">' +
-        '<div style="font-weight:800;color:#111">' + (name || kind) + '</div>' +
-        (name ? '<div style="margin-top:4px;color:#111;opacity:.75">' + kind + '</div>' : '') +
-      '</div>';
-      m.bindPopup(pop, { className: 'map-popup-card', maxWidth: 320, autoPan: true, autoPanPadding: [28, 28] });
+      m.bindPopup(
+        poiPopupHtml(placeName, kind, null, true, ll, tags),
+        { className: 'map-popup-card', maxWidth: 320, autoPan: true, autoPanPadding: [28, 28] }
+      );
+
       m.on('click', function () {
         var targetZoom = Math.max(dm.map.getZoom(), 16);
         dm.map.flyTo(ll, targetZoom, { duration: 1.2 });
         dm.map.once('moveend', function () {
           try { m.openPopup(); } catch (e2) { /* ignore */ }
         });
+
+        // Fetch and update image once per marker (plus global cache across markers).
+        if (m.__wikiImgApplied) return;
+        if (!m.__wikiImgPromise) {
+          m.__wikiImgPromise = getWikiSummary(wikiQuery);
+        }
+        m.__wikiImgPromise
+          .then(function (wiki) {
+            m.setPopupContent(poiPopupHtml(placeName, kind, wiki, false, ll, tags));
+            m.__wikiImgApplied = true;
+          })
+          .catch(function () {
+            // leave placeholder/fallback silently
+          });
       });
     });
   }

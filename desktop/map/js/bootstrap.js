@@ -34,21 +34,9 @@
   dm.util.normCity = function (city) { return String(city || '').trim().toLowerCase(); };
 
   dm.util.pinColorForValue = function (v, vmin, vmax) {
-    // Mix accent with white: higher values -> more saturated/darker.
-    var t = vmax <= vmin ? 0.55 : dm.util.clamp01((Number(v) - vmin) / (vmax - vmin));
-    var mix = 0.25 + 0.55 * t; // 0.25..0.80
-    function hex(n) { var s = n.toString(16); return s.length === 1 ? '0' + s : s; }
-    function parseHex(h) { return parseInt(h, 16); }
-    var c = String(dm.ACCENT || '#000080');
-    if (!/^#?[0-9a-f]{6}$/i.test(c)) c = '#000080';
-    if (c[0] !== '#') c = '#' + c;
-    var r = parseHex(c.slice(1, 3));
-    var g = parseHex(c.slice(3, 5));
-    var b = parseHex(c.slice(5, 7));
-    var rr = Math.round(r * mix + 255 * (1 - mix));
-    var gg = Math.round(g * mix + 255 * (1 - mix));
-    var bb = Math.round(b * mix + 255 * (1 - mix));
-    return '#' + hex(rr) + hex(gg) + hex(bb);
+    // Uniform marker fill: always the same dark accent color.
+    // (User requested all pins be identical dark blue + white.)
+    return String(dm.ACCENT || '#000080');
   };
 
   dm.util.pinSvg = function (fill, selected) {
@@ -206,7 +194,7 @@
       return { 'Sea marks (OpenSeaMap)': sea };
     }
 
-    L.control.layers(bases, mapOverlays(), { position: 'topright', collapsed: true }).addTo(map);
+    L.control.layers(bases, mapOverlays(), { position: 'bottomleft', collapsed: true }).addTo(map);
   };
 
   dm.util.addGoogleBasemap = function (apiKey) {
@@ -228,7 +216,7 @@
           L.control.layers(
             { Map: roads, Satellite: sat, Hybrid: hybrid },
             {},
-            { position: 'topright', collapsed: true }
+            { position: 'bottomleft', collapsed: true }
           ).addTo(map);
         } catch (err) {
           dm.util.addOsmBasemapWithFallback();

@@ -21,7 +21,7 @@ This repository is a **Python 3.10+ desktop application**, not a hosted React/SP
 ## Project layout (do not replace with a web app)
 
 - `main.py` — entry, `AppController`, filter/sort/map/table wiring
-- `ui/` — `main_window.py`, `sidebar.py`, `directory_list.py`, `datatable.py` (legacy table widget if present), `map_bridge.py`, `styles.qss`
+- `ui/` — `main_window.py`, `sidebar.py`, `directory_list.py`, `map_bridge.py`, `styles.qss`
 - `map/index.html` — Leaflet map (local file loaded by WebEngine)
 - `utils/` — `parser.py`, `dataset_ops.py`
 - `models/` — `datapoint.py`
@@ -35,3 +35,9 @@ This repository is a **Python 3.10+ desktop application**, not a hosted React/SP
 ## When adding features
 
 Extend **Python controllers**, **PyQt widgets**, **`map/index.html` JS**, and **parsers** only. Keep a single source of truth for data in the controller (`self.data` / filtered view pattern).
+
+## Directory structure (stable)
+
+- **Do not** add parallel files or folders that duplicate an existing role (e.g. a second map page, second bridge, or `utils/foo2.py` for the same concern as `foo.py`).
+- **Prefer** editing the **existing** file in its **current** folder over creating new paths. New code belongs in the module that already owns that responsibility (`main.py`, `ui/main_window.py`, `map/index.html`, etc.).
+- Only add a **new** file or folder when it is genuinely new scope (not a copy of something already there).

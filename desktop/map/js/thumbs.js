@@ -8,32 +8,50 @@
     var key = dm.util.normCity(city);
     if (!key) return Promise.resolve(null);
     if (dm.cityThumbCache[key]) return Promise.resolve(dm.cityThumbCache[key]);
-    var api = 'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(String(city || '').trim());
+    var q = String(city || '').trim();
+    if (q && !/pakistan/i.test(q)) q = q + ' Pakistan';
+    var api = 'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(q);
     return fetch(api, { headers: { 'accept': 'application/json' } })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (j) {
         var src = j && j.thumbnail && j.thumbnail.source ? String(j.thumbnail.source) : null;
-        if (src) dm.cityThumbCache[key] = src;
-        return src;
+        if (src) {
+          dm.cityThumbCache[key] = src;
+          return src;
+        }
+        // Fallback image so the popup still has a hero image.
+        var fb = 'https://source.unsplash.com/600x400/?' + encodeURIComponent(String(city || '').trim() || 'city') + ',pakistan';
+        dm.cityThumbCache[key] = fb;
+        return fb;
       })
-      .catch(function () { return null; });
+      .catch(function () {
+        // Final fallback (no network / blocked).
+        var fb = 'https://source.unsplash.com/600x400/?city,pakistan';
+        dm.cityThumbCache[key] = fb;
+        return fb;
+      });
   }
 
   dm.util.applyThumbToContainer = function (containerEl, city) {
     if (!containerEl) return;
-    var img = containerEl.querySelector && containerEl.querySelector('img.map-card-img');
-    if (!img) return;
+    var imgs = [];
+    if (containerEl.querySelectorAll) {
+      imgs = Array.prototype.slice.call(containerEl.querySelectorAll('img.map-card-img, img.map-card-hero'));
+    }
+    if (!imgs.length) return;
     var key = dm.util.normCity(city);
     if (!key) return;
-    if (img.getAttribute('data-loaded') === '1') return;
-    img.setAttribute('data-loaded', '1');
+    // Only fetch once per popup container.
+    if (containerEl.getAttribute && containerEl.getAttribute('data-thumb-loaded') === '1') return;
+    if (containerEl.setAttribute) containerEl.setAttribute('data-thumb-loaded', '1');
     fetchCityThumbUrl(city).then(function (src) {
-      if (!src) {
-        img.classList.add('is-hidden');
-        return;
-      }
-      img.src = src;
-      img.classList.remove('is-hidden');
+      if (!src) return;
+      imgs.forEach(function (img) {
+        try {
+          img.src = src;
+          img.classList.remove('is-hidden');
+        } catch (e) { /* ignore */ }
+      });
     });
   };
 })();

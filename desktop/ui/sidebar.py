@@ -78,7 +78,7 @@ class LeftSidebar(QWidget):
         layout.addWidget(city_lbl)
         self.edit_city = QLineEdit()
         self.edit_city.setObjectName("lineEditElite")
-        self.edit_city.setPlaceholderText("e.g. New York")
+        self.edit_city.setPlaceholderText("Enter city name")
         layout.addWidget(self.edit_city)
 
         row = QHBoxLayout()
@@ -88,7 +88,7 @@ class LeftSidebar(QWidget):
         lat_lbl.setObjectName("microLabel")
         self.edit_lat = QLineEdit()
         self.edit_lat.setObjectName("lineEditElite")
-        self.edit_lat.setPlaceholderText("40.7128")
+        self.edit_lat.setPlaceholderText("24.8607")
         lat_wrap.addWidget(lat_lbl)
         lat_wrap.addWidget(self.edit_lat)
         lng_wrap = QVBoxLayout()
@@ -96,7 +96,7 @@ class LeftSidebar(QWidget):
         lng_lbl.setObjectName("microLabel")
         self.edit_lng = QLineEdit()
         self.edit_lng.setObjectName("lineEditElite")
-        self.edit_lng.setPlaceholderText("-74.0060")
+        self.edit_lng.setPlaceholderText("67.0011")
         lng_wrap.addWidget(lng_lbl)
         lng_wrap.addWidget(self.edit_lng)
         row.addLayout(lat_wrap)
@@ -116,7 +116,7 @@ class LeftSidebar(QWidget):
         self.btn_add_manual.setCursor(Qt.PointingHandCursor)
         layout.addWidget(self.btn_add_manual)
 
-        # --- Placeholder: search ---
+        # --- Search Index (city + POI search) ---
         layout.addSpacing(8)
         sep1 = QFrame()
         sep1.setObjectName("dirSeparator")
@@ -133,16 +133,8 @@ class LeftSidebar(QWidget):
 
         self.edit_search = QLineEdit()
         self.edit_search.setObjectName("lineEditElite")
-        self.edit_search.setPlaceholderText("Search by city name…")
+        self.edit_search.setPlaceholderText("Type your city name")
         search_row.addWidget(self.edit_search, stretch=1)
-
-        # Use a non-emoji glyph so the color is controlled by QSS (emoji can render blue).
-        self.btn_search_city = QPushButton("⌕")
-        self.btn_search_city.setObjectName("btnSearchIcon")
-        self.btn_search_city.setCursor(Qt.PointingHandCursor)
-        self.btn_search_city.setToolTip("Search city on map")
-        self.btn_search_city.setFixedSize(36, 34)
-        search_row.addWidget(self.btn_search_city, stretch=0)
 
         layout.addLayout(search_row)
 

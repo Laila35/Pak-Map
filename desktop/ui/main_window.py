@@ -63,25 +63,80 @@ class MainWindow(QMainWindow):
         self._web_view: QWebEngineView | None = None
         self._map_bridge: MapBridge | None = None
 
-        splitter = QSplitter(Qt.Horizontal)
-        splitter.setObjectName("mainSplitter")
-        splitter.setChildrenCollapsible(False)
-        splitter.setHandleWidth(8)
+        self._splitter = QSplitter(Qt.Horizontal)
+        self._splitter.setObjectName("mainSplitter")
+        self._splitter.setChildrenCollapsible(False)
+        self._splitter.setHandleWidth(8)
 
-        left = self._build_left_panel()
-        center = self._build_center_panel()
-        right = self._build_right_panel()
+        self._panel_left = self._build_left_panel()
+        self._panel_center = self._build_center_panel()
+        self._panel_right = self._build_right_panel()
 
-        splitter.addWidget(left)
-        splitter.addWidget(center)
-        splitter.addWidget(right)
-        splitter.setStretchFactor(0, 0)
-        splitter.setStretchFactor(1, 1)
-        splitter.setStretchFactor(2, 0)
+        self._splitter.addWidget(self._panel_left)
+        self._splitter.addWidget(self._panel_center)
+        self._splitter.addWidget(self._panel_right)
+        self._splitter.setStretchFactor(0, 0)
+        self._splitter.setStretchFactor(1, 1)
+        self._splitter.setStretchFactor(2, 0)
 
         # Reasonable defaults that still allow the user to resize/collapse.
-        splitter.setSizes([320, 900, 420])
-        root.addWidget(splitter, stretch=1)
+        self._splitter.setSizes([320, 900, 420])
+        root.addWidget(self._splitter, stretch=1)
+
+        # Responsive behavior (mobile-like narrow windows vs desktop/laptop).
+        self._responsive_mode: str | None = None
+        self._apply_responsive_layout()
+
+    def resizeEvent(self, event) -> None:  # type: ignore[override]
+        super().resizeEvent(event)
+        self._apply_responsive_layout()
+
+    def _apply_responsive_layout(self) -> None:
+        """
+        Keep the same UI and functionality, but adapt layout for small windows:
+        - Narrow: hide right panel (directory) to prioritize map + sidebar.
+        - Very narrow: hide both side panels to prioritize the map.
+        """
+        w = int(self.width() or 0)
+        # Breakpoints tuned for embedded/laptop screens.
+        if w < 980:
+            mode = "map_only"
+        elif w < 1240:
+            mode = "no_right"
+        else:
+            mode = "full"
+
+        if mode == self._responsive_mode:
+            return
+        self._responsive_mode = mode
+
+        if mode == "full":
+            # Restore both panels.
+            self._panel_left.setMaximumWidth(420)
+            self._panel_left.setMinimumWidth(260)
+            self._panel_right.setMaximumWidth(560)
+            self._panel_right.setMinimumWidth(320)
+            try:
+                self._splitter.setSizes([320, max(600, w - 320 - 420), 420])
+            except Exception:
+                self._splitter.setSizes([320, 900, 420])
+            return
+
+        if mode == "no_right":
+            # Hide right panel but keep left.
+            self._panel_right.setMinimumWidth(0)
+            self._panel_right.setMaximumWidth(0)
+            self._panel_left.setMaximumWidth(420)
+            self._panel_left.setMinimumWidth(260)
+            self._splitter.setSizes([320, max(600, w - 320), 0])
+            return
+
+        # map_only
+        self._panel_left.setMinimumWidth(0)
+        self._panel_left.setMaximumWidth(0)
+        self._panel_right.setMinimumWidth(0)
+        self._panel_right.setMaximumWidth(0)
+        self._splitter.setSizes([0, max(700, w), 0])
 
     def _build_left_panel(self) -> QFrame:
         glass = QFrame()
@@ -247,6 +302,8 @@ class MainWindow(QMainWindow):
 
         title = QLabel("Directory")
         title.setObjectName("titleDirectory")
+        # Enable :hover in QSS for this label
+        title.setAttribute(Qt.WA_Hover, True)
         head_lay.addWidget(title)
 
         self.edit_directory_filter = QLineEdit()

@@ -69,6 +69,10 @@ html, body {
   background: rgba(0, 0, 0, 0.86) !important;
   border-radius: 8px !important;
 }
+.leaflet-bottom.leaflet-left .leaflet-control-layers {
+  margin-left: 10px !important;
+  margin-bottom: 10px !important;
+}
 .leaflet-control-layers,
 .leaflet-control-layers label,
 .leaflet-control-layers span {
@@ -94,19 +98,99 @@ html, body {
   padding: 2px 6px !important;
 }
 
-/* White card popup (click) — className applies to .leaflet-popup */
+/* Popup (click) — className applies to .leaflet-popup */
 .leaflet-popup.map-popup-card .leaflet-popup-content-wrapper {
-  background: #ffffff !important;
-  border-radius: 10px !important;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35) !important;
-  padding: 0 !important;
+  background: rgba(0, 0, 0, 0.70) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 14px 55px rgba(0, 0, 0, 0.55) !important;
+  padding: 0 !important; /* inner padding handled by .dm-popup-pad */
+  backdrop-filter: blur(6px);
 }
 .leaflet-popup.map-popup-card .leaflet-popup-content {
   margin: 0 !important;
 }
 .leaflet-popup.map-popup-card .leaflet-popup-tip {
-  background: #ffffff !important;
+  background: rgba(0, 0, 0, 0.70) !important;
   box-shadow: none !important;
+}
+
+/* Modern dark popup layout */
+.dm-popup {
+  color: rgba(255, 255, 255, 0.92);
+  font-family: "Segoe UI", system-ui, sans-serif;
+}
+.dm-popup-pad {
+  padding: 14px 14px 14px 14px;
+  min-width: 220px;
+  max-width: 320px;
+  position: relative;
+}
+.dm-popup-tier {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.65);
+}
+.dm-popup-media {
+  margin-bottom: 10px;
+}
+.dm-popup-img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.10);
+}
+.dm-popup-noimg {
+  width: 100%;
+  padding: 12px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.80);
+  font-size: 12px;
+  text-align: center;
+}
+.dm-popup-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.18;
+}
+.dm-popup-title-gold {
+  color: #FFD700;
+}
+.dm-popup-title-white {
+  color: #ffffff;
+}
+.dm-popup-desc {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.88);
+}
+.dm-popup-desc-muted {
+  color: rgba(255, 255, 255, 0.70);
+}
+.dm-popup-meta {
+  margin-top: 10px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.75);
+}
+.dm-popup-meta-strong {
+  color: rgba(255, 255, 255, 0.95);
+  font-weight: 800;
+}
+.dm-popup-value {
+  margin-top: 10px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.85);
+}
+.dm-popup-value-num {
+  color: #FFD700;
+  font-weight: 900;
 }
 
 .map-card-inner {
@@ -114,6 +198,13 @@ html, body {
   position: relative;
   min-width: 220px;
   max-width: 300px;
+}
+
+/* Tailwind-like size: w-48 (192px) for Wikipedia-style popups */
+.map-card-narrow {
+  width: 192px;
+  max-width: 192px;
+  min-width: 192px;
 }
 .map-card-media {
   display: flex;
@@ -134,6 +225,20 @@ html, body {
 .map-card-img.is-hidden {
   display: none;
 }
+
+/* City marker popup hero image (Wikipedia thumbnail) */
+.map-card-hero {
+  width: 100%;
+  height: 112px; /* h-28 */
+  object-fit: cover;
+  border-radius: 10px;
+  display: block;
+  background: #f2f2f2;
+  margin-bottom: 12px;
+}
+.map-card-hero.is-hidden {
+  display: none;
+}
 .map-card-head {
   flex: 1 1 auto;
   min-width: 0;
@@ -150,7 +255,7 @@ html, body {
 .map-card-title {
   font-size: 17px;
   font-weight: 700;
-  color: #111111;
+  color: #b8860b; /* golden */
   margin: 0 72px 8px 0;
   line-height: 1.2;
 }

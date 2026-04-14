@@ -4,6 +4,15 @@
   var dm = window.__datamap;
   if (!dm || !dm.map) return;
 
+  function __escapeHtml(s) {
+    return String(s || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   function displayTitle(p) {
     var c = String(p.city || '').trim();
     if (c) return c;
@@ -25,43 +34,81 @@
     return Number(p.value).toLocaleString();
   }
 
-  function popupHtml(p, vmin, vmax) {
+  // ---- Wikipedia summary fetch (image + short extract; cached) ----
+  var __wikiSummaryMem = {}; // lower(title) -> { imgUrl: string|null, extract: string|null }
+  function __wikiKey(t) { return String(t || '').trim().toLowerCase(); }
+  async function getWikiSummary(title) {
+    var raw = String(title || '').trim();
+    if (!raw) return { imgUrl: null, extract: null };
+    var k = __wikiKey(raw);
+    if (__wikiSummaryMem[k]) return __wikiSummaryMem[k];
+
+    try {
+      var url = 'https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(raw);
+      var res = await fetch(url, { headers: { accept: 'application/json' } });
+      if (!res || !res.ok) {
+        __wikiSummaryMem[k] = { imgUrl: null, extract: null };
+        return __wikiSummaryMem[k];
+      }
+      var data = await res.json();
+      var imgUrl =
+        data && data.thumbnail && typeof data.thumbnail.source === 'string'
+          ? String(data.thumbnail.source)
+          : null;
+      var extract = data && typeof data.extract === 'string' ? String(data.extract) : null;
+      // Keep it short inside a Leaflet popup.
+      if (extract && extract.length > 220) extract = extract.slice(0, 217) + '...';
+
+      __wikiSummaryMem[k] = { imgUrl: imgUrl, extract: extract };
+      return __wikiSummaryMem[k];
+    } catch (e) {
+      __wikiSummaryMem[k] = { imgUrl: null, extract: null };
+      return __wikiSummaryMem[k];
+    }
+  }
+
+  function titleMixHtml(title) {
+    var t = String(title || '').trim();
+    if (!t) return '';
+    var parts = t.split(/\s+/);
+    if (parts.length === 1) {
+      return '<span class="dm-popup-title-gold">' + __escapeHtml(t) + '</span>';
+    }
+    var first = parts.shift();
+    var rest = parts.join(' ');
+    return (
+      '<span class="dm-popup-title-gold">' + __escapeHtml(first) + '</span>' +
+      ' ' +
+      '<span class="dm-popup-title-white">' + __escapeHtml(rest) + '</span>'
+    );
+  }
+
+  function popupHtml(p, vmin, vmax, wiki) {
+    wiki = wiki || {};
     var lat = Number(p.lat).toFixed(4);
     var lng = Number(p.lng).toFixed(4);
     var val = formatVal(p);
     var tier = tierFor(Number(p.value), vmin, vmax);
     var title = displayTitle(p);
+    var imgTop = (function () {
+      if (wiki && wiki.imgUrl) {
+        return (
+          '<img class="dm-popup-img" src="' + __escapeHtml(wiki.imgUrl) + '" alt="" referrerpolicy="no-referrer" />'
+        );
+      }
+      return '<div class="dm-popup-noimg">No image available</div>';
+    })();
+    var desc = wiki && wiki.extract ? String(wiki.extract) : '';
     return (
-      '<div class="map-card-inner">' +
-        '<div class="map-card-tier">' + tier + '</div>' +
-        '<div class="map-card-media">' +
-          '<img class="map-card-img is-hidden" alt="" referrerpolicy="no-referrer" />' +
-          '<div class="map-card-head">' +
-            '<div class="map-card-title">' + title + '</div>' +
-            '<div class="map-card-coords">Lat: ' + lat + ' &nbsp;·&nbsp; Lng: ' + lng + '</div>' +
-          '</div>' +
+      '<div class="dm-popup">' +
+        '<div class="dm-popup-pad">' +
+          '<div class="dm-popup-tier">' + __escapeHtml(tier) + '</div>' +
+          '<div class="dm-popup-media">' + imgTop + '</div>' +
+          '<div class="dm-popup-title">' + titleMixHtml(title) + '</div>' +
+          (desc ? '<div class="dm-popup-desc">' + __escapeHtml(desc) + '</div>' : '<div class="dm-popup-desc dm-popup-desc-muted">No description available</div>') +
+          '<div class="dm-popup-meta">Lat: ' + __escapeHtml(lat) + ' &nbsp;·&nbsp; Lng: ' + __escapeHtml(lng) + '</div>' +
+          '<div class="dm-popup-value">Population: <span class="dm-popup-value-num">' + __escapeHtml(val) + '</span></div>' +
         '</div>' +
-        '<div class="map-card-value">' + val + '</div>' +
-        '<div style="margin-top:10px;font-size:13px;color:#666">Population: <strong style="color:#111">' + val + '</strong></div>' +
-      '</div>'
-    );
-  }
-
-  function tooltipHtml(p, vmin, vmax) {
-    var lat = Number(p.lat).toFixed(4);
-    var lng = Number(p.lng).toFixed(4);
-    var val = formatVal(p);
-    var title = displayTitle(p);
-    return (
-      '<div class="map-tooltip-inner">' +
-        '<div class="map-card-media" style="margin-bottom:6px">' +
-          '<img class="map-card-img is-hidden" alt="" referrerpolicy="no-referrer" />' +
-          '<div class="map-card-head">' +
-            '<div style="font-weight:700;font-size:14px;color:#111;margin-bottom:4px">' + title + '</div>' +
-            '<div style="font-size:12px;color:#666">Lat: ' + lat + ' &nbsp; Lng: ' + lng + '</div>' +
-          '</div>' +
-        '</div>' +
-        '<div style="font-size:13px;color:#666">Population: <strong style="color:#111">' + val + '</strong></div>' +
       '</div>'
     );
   }
@@ -71,6 +118,65 @@
       window.__datamapSchedulePoisUpdate();
     }
   }
+
+  // ---- Search result popup (Wikipedia image + caching) ----
+  function searchPopupHtml(title, kind, lat, lng, wiki, loading) {
+    wiki = wiki || {};
+    var imgTop = loading
+      ? '<div class="dm-popup-noimg">Loading image...</div>'
+      : (wiki.imgUrl
+          ? '<img class="dm-popup-img" src="' + __escapeHtml(wiki.imgUrl) + '" alt="" referrerpolicy="no-referrer" />'
+          : '<div class="dm-popup-noimg">No image available</div>');
+    var desc = wiki.extract ? String(wiki.extract) : '';
+    return (
+      '<div class="dm-popup">' +
+        '<div class="dm-popup-pad">' +
+          '<div class="dm-popup-media">' + imgTop + '</div>' +
+          '<div class="dm-popup-title">' + titleMixHtml(title) + '</div>' +
+          (desc ? '<div class="dm-popup-desc">' + __escapeHtml(desc) + '</div>' : '<div class="dm-popup-desc dm-popup-desc-muted">No description available</div>') +
+          '<div class="dm-popup-meta">Lat: ' + __escapeHtml(Number(lat).toFixed(4)) + ' &nbsp;·&nbsp; Lng: ' + __escapeHtml(Number(lng).toFixed(4)) + '</div>' +
+          (kind ? '<div class="dm-popup-meta">Type: <span class="dm-popup-meta-strong">' + __escapeHtml(kind) + '</span></div>' : '') +
+        '</div>' +
+      '</div>'
+    );
+  }
+
+  // Exposed: called by Python after geocoding a query.
+  window.showSearchResult = function (lat, lng, query, kind) {
+    lat = Number(lat); lng = Number(lng);
+    if (!isFinite(lat) || !isFinite(lng)) return;
+    var title = String(query || '').trim() || 'Search result';
+    var k = String(kind || '').trim();
+
+    if (!dm.__searchMarker) {
+      dm.__searchMarker = L.marker([lat, lng], {
+        icon: dm.util.placePinDivIcon(true, dm.ACCENT),
+        keyboard: false,
+        riseOnHover: true
+      }).addTo(dm.markerLayer);
+    } else {
+      dm.__searchMarker.setLatLng([lat, lng]);
+      dm.__searchMarker.setIcon(dm.util.placePinDivIcon(true, dm.ACCENT));
+    }
+
+    var m = dm.__searchMarker;
+    m.__wikiApplied = false;
+    m.__wikiPromise = null;
+
+    m.bindPopup(searchPopupHtml(title, k, lat, lng, null, true), {
+      className: 'map-popup-card',
+      maxWidth: 340,
+      autoPan: true,
+      autoPanPadding: [28, 28]
+    });
+    try { m.openPopup(); } catch (e) { /* ignore */ }
+
+    m.__wikiPromise = getWikiSummary(title);
+    m.__wikiPromise.then(function (wiki) {
+      m.setPopupContent(searchPopupHtml(title, k, lat, lng, wiki, false));
+      m.__wikiApplied = true;
+    }).catch(function () { /* ignore */ });
+  };
 
   /**
    * @param {Array} data - [{ id, city, lat, lng, value }, ...]
@@ -104,31 +210,28 @@
       }).addTo(dm.markerLayer);
 
       m.__pinFill = fill;
+      m.__wikiApplied = false;
+      m.__wikiPromise = null;
       bounds.extend([lat, lng]);
 
-      m.bindPopup(popupHtml(p, vmin, vmax), {
+      // Bind exactly once. We update content in-place after fetching Wikipedia.
+      m.bindPopup(popupHtml(p, vmin, vmax, null), {
         className: 'map-popup-card',
         maxWidth: 340,
         autoPan: true,
         autoPanPadding: [28, 28]
       });
-      m.bindTooltip(tooltipHtml(p, vmin, vmax), {
-        sticky: true,
-        direction: 'top',
-        opacity: 1,
-        className: 'map-tooltip-card',
-        offset: [0, -10]
-      });
-
-      m.on('tooltipopen', function (e) {
-        if (e && e.tooltip && dm.util.applyThumbToContainer) {
-          dm.util.applyThumbToContainer(e.tooltip.getElement(), p.city);
-        }
-      });
       m.on('popupopen', function (e) {
-        if (e && e.popup && dm.util.applyThumbToContainer) {
-          dm.util.applyThumbToContainer(e.popup.getElement(), p.city);
+        // Fetch once per marker; update this same popup (no duplicate bind/open).
+        if (m.__wikiApplied) return;
+        if (!m.__wikiPromise) {
+          m.__wikiPromise = getWikiSummary(displayTitle(p));
         }
+        m.__wikiPromise.then(function (wiki) {
+          // Only update if this marker still has a popup instance.
+          try { m.setPopupContent(popupHtml(p, vmin, vmax, wiki)); } catch (e2) { /* ignore */ }
+          m.__wikiApplied = true;
+        }).catch(function () { /* ignore */ });
       });
 
       m.on('click', function () {

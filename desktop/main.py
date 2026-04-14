@@ -21,14 +21,14 @@ from utils.dataset_ops import (
     max_value,
     sort_points,
 )
-from utils.parser import parse_csv, parse_json, parse_value_field
+from utils.parser import is_in_pakistan_bbox, parse_csv, parse_json, parse_value_field
 from utils.boundaries import load_boundary_geojson_for_city, save_boundary_geojson_for_city
 from utils.boundary_fetch import (
     boundary_covers_points,
     fetch_city_boundary_geojson,
     generate_fallback_polygon,
 )
-from utils.geocode import geocode_pk_city
+from utils.geocode import geocode_pk_query
 
 
 def load_stylesheet() -> str:
@@ -68,7 +68,9 @@ class AppController(QObject):
         sb.btn_add_manual.clicked.connect(self._on_add_manual)
         sb.btn_export_filtered.clicked.connect(self._export_filtered)
         if hasattr(sb, "btn_search_city"):
-            sb.btn_search_city.clicked.connect(self._on_search_city_clicked)
+            sb.btn_search_city.clicked.connect(self._on_search_clicked)
+        # Magnifier button removed: allow pressing Enter in the search box.
+        sb.edit_search.returnPressed.connect(self._on_search_clicked)
 
         sm = window.data_table.selectionModel()
         if sm is not None:
@@ -87,46 +89,6 @@ class AppController(QObject):
         print("Map loaded")
         self._apply_filters_and_update_map()
 
-    def _on_search_city_clicked(self) -> None:
-        city = self._window.left_sidebar.edit_search.text().strip()
-        if not city:
-            return
-
-        def worker() -> None:
-            hit = geocode_pk_city(city)
-            if hit is None:
-                # Offline / rate-limited / network failure fallback:
-                # if the city exists in the dataset, fly to the centroid of its points.
-                key = city.strip().lower()
-                pts = [(float(p.lat), float(p.lng)) for p in self.data if (p.city or "").strip().lower() == key]
-                if not pts:
-                    return
-                lat = sum(p[0] for p in pts) / len(pts)
-                lng = sum(p[1] for p in pts) / len(pts)
-            else:
-                lat, lng, _display = hit
-
-            def apply_on_ui() -> None:
-                # Smooth camera movement to the searched city.
-                try:
-                    if self._window.web_view is not None:
-                        self._window.web_view.page().runJavaScript(
-                            f"typeof flyToLocation === 'function' && flyToLocation({lat}, {lng}, 12);"
-                        )
-                except Exception:
-                    pass
-                # Also refresh boundary for this city (best match for current dataset points).
-                self._update_boundary_for_city_search(city, float(lat), float(lng), city)
-
-            try:
-                from PyQt5.QtCore import QTimer
-
-                QTimer.singleShot(0, apply_on_ui)
-            except Exception:
-                apply_on_ui()
-
-        threading.Thread(target=worker, daemon=True).start()
-
     def _sort_field_and_desc(self) -> tuple[SortField, bool]:
         idx = self._window.left_sidebar.combo_sort.currentIndex()
         if idx == 0:
@@ -137,6 +99,51 @@ class AppController(QObject):
             return ("city", False)
         return ("city", True)
 
+    def _on_search_clicked(self) -> None:
+        """Fly the map to a free-text Pakistan query (city or POI)."""
+        query = self._window.left_sidebar.edit_search.text().strip()
+        if not query:
+            return
+
+        def worker() -> None:
+            hit = geocode_pk_query(query)
+            if hit is None:
+                return
+            lat, lng, _display = hit
+
+            def apply_on_ui() -> None:
+                try:
+                    if self._window.web_view is not None:
+                        self._window.web_view.page().runJavaScript(
+                            f"typeof flyToLocation === 'function' && flyToLocation({lat}, {lng}, 14);"
+                        )
+                        # Also drop a temporary "search result" marker with a rich popup (image + details).
+                        safe_q = json.dumps(query)
+                        self._window.web_view.page().runJavaScript(
+                            f"typeof showSearchResult === 'function' && showSearchResult({lat}, {lng}, {safe_q}, '');"
+                        )
+                except Exception:
+                    pass
+
+                # If the query exactly matches a city that exists in the dataset,
+                # refresh that city's boundary outline.
+                city_key = query.strip().lower()
+                city_match = next(
+                    (p.city for p in self.data if (p.city or "").strip().lower() == city_key),
+                    "",
+                )
+                if city_match:
+                    self._update_boundary_for_city_search(city_match, float(lat), float(lng), query)
+
+            try:
+                from PyQt5.QtCore import QTimer
+
+                QTimer.singleShot(0, apply_on_ui)
+            except Exception:
+                apply_on_ui()
+
+        threading.Thread(target=worker, daemon=True).start()
+
     @staticmethod
     def _city_key(p: DataPoint) -> str:
         c = (p.city or "").strip().lower()
@@ -146,27 +153,23 @@ class AppController(QObject):
         """
         Clean map when nothing to show: no CSV → none; else pins for:
         - the directory-selected row (always, if that row is in the current filter), and
-        - other cities matching a non-empty search (one pin per city).
+        - the rest of the filtered dataset (so the map is always populated).
         """
         if not self.data:
             return []
-        seen: set[str] = set()
-        out: list[DataPoint] = []
+        if search.strip():
+            # In search mode, show the actual matching results (places inside cities).
+            limit = 700
+            out = list(filtered[:limit])
+            return out
 
+        # No active search: keep map populated with the top chunk.
+        limit = 900
+        out = list(filtered[:limit])
         if self.selected_point_id:
             sel_pt = next((p for p in filtered if p.id == self.selected_point_id), None)
-            if sel_pt is not None:
-                seen.add(self._city_key(sel_pt))
-                out.append(sel_pt)
-
-        if search.strip():
-            for p in filtered:
-                ck = self._city_key(p)
-                if ck in seen:
-                    continue
-                seen.add(ck)
-                out.append(p)
-
+            if sel_pt is not None and all(p.id != sel_pt.id for p in out):
+                out.insert(0, sel_pt)
         return out
 
     def _sync_map_and_boundary(self, filtered: list[DataPoint], search: str) -> None:
@@ -177,16 +180,10 @@ class AppController(QObject):
             [p.to_dict() for p in map_points],
             map_sel,
         )
-        if not map_points:
-            self._window.set_city_boundary(None)
-        elif self.selected_point_id is not None:
+        if self.selected_point_id is not None:
             self._update_boundary_for_selected()
-        elif search.strip():
-            # Search-only mode (no explicit selection): outline the first visible city's boundary.
-            p0 = map_points[0]
-            self._update_boundary_for_city_search(p0.city, float(p0.lat), float(p0.lng), search)
         else:
-            # No selection and no active search → do not keep stale outlines.
+            # No selection → do not keep stale outlines.
             self._window.set_city_boundary(None)
 
     def _update_boundary_for_city_search(self, city: str, lat: float, lng: float, search: str) -> None:
@@ -503,6 +500,14 @@ class AppController(QObject):
                 self._window,
                 "Input error",
                 "Latitude and longitude must be valid numbers.",
+            )
+            return
+        if not is_in_pakistan_bbox(lat, lng):
+            QMessageBox.warning(
+                self._window,
+                "Pakistan only",
+                "This app is configured for Pakistan-only locations.\n"
+                "Please enter coordinates within Pakistan (including ex-FATA regions).",
             )
             return
         val = parse_value_field(val_s)

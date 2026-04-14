@@ -21,6 +21,7 @@ _VALUE_KEYS = (
     "score",
 )
 _ID_KEYS = ("id",)
+_COUNTRY_KEYS = ("country", "country_code", "admin_country", "iso2", "iso")
 _TYPE_KEYS = ("category", "type", "place_type", "poi_type", "icon")
 _NAME_KEYS = ("place_name", "title", "display_name")
 _DESC_KEYS = ("description", "details", "notes", "summary")
@@ -97,6 +98,32 @@ def parse_value_field(raw: Any) -> float | None:
         return x if math.isfinite(x) else None
     except ValueError:
         return None
+
+
+def _is_pakistan_country_value(raw: Any) -> bool:
+    """
+    Accept common Pakistan markers if a dataset includes a country field.
+
+    - "Pakistan", "PAK"
+    - "PK" (ISO2)
+    """
+    if raw is None:
+        return False
+    s = str(raw).strip().lower()
+    if not s:
+        return False
+    return s in {"pakistan", "pak", "pk"}
+
+
+def is_in_pakistan_bbox(lat: float, lng: float) -> bool:
+    """
+    Fast Pakistan-only gate for datasets.
+
+    This is intentionally a **broad bounding box** that covers Pakistan including
+    NW regions (FATA / ex-FATA areas). It avoids any network calls.
+    """
+    # Approximate bounds (inclusive): Pakistan extent + small buffer.
+    return (23.0 <= lat <= 37.6) and (60.0 <= lng <= 78.8)
 
 
 def _extract_city(row: Mapping[str, Any]) -> str | None:
@@ -205,6 +232,18 @@ def row_to_datapoint(row: Mapping[str, Any]) -> DataPoint | None:
     lng = _extract_lng(row)
     if lat is None or lng is None:
         return None
+
+    # Pakistan-only dataset rule:
+    # - If a country field exists and indicates PK, accept.
+    # - If a country field exists and indicates non-PK, reject.
+    # - If no country field, fall back to lat/lng bounding box.
+    raw_country = _get_first(row, _COUNTRY_KEYS)
+    if raw_country is not None and str(raw_country).strip():
+        if not _is_pakistan_country_value(raw_country):
+            return None
+    else:
+        if not is_in_pakistan_bbox(float(lat), float(lng)):
+            return None
 
     val = _extract_value(row)
     if val is None:
