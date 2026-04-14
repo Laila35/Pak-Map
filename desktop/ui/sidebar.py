@@ -42,7 +42,7 @@ class LeftSidebar(QWidget):
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.NoFrame)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         scroll.setSizeAdjustPolicy(QScrollArea.AdjustIgnored)
 
         inner = QWidget()
@@ -127,10 +127,24 @@ class LeftSidebar(QWidget):
         search_title.setObjectName("microLabelAccent")
         layout.addWidget(search_title)
 
+        search_row = QHBoxLayout()
+        search_row.setSpacing(10)
+        search_row.setContentsMargins(0, 0, 0, 0)
+
         self.edit_search = QLineEdit()
         self.edit_search.setObjectName("lineEditElite")
         self.edit_search.setPlaceholderText("Search by city name…")
-        layout.addWidget(self.edit_search)
+        search_row.addWidget(self.edit_search, stretch=1)
+
+        # Use a non-emoji glyph so the color is controlled by QSS (emoji can render blue).
+        self.btn_search_city = QPushButton("⌕")
+        self.btn_search_city.setObjectName("btnSearchIcon")
+        self.btn_search_city.setCursor(Qt.PointingHandCursor)
+        self.btn_search_city.setToolTip("Search city on map")
+        self.btn_search_city.setFixedSize(36, 34)
+        search_row.addWidget(self.btn_search_city, stretch=0)
+
+        layout.addLayout(search_row)
 
         # --- Placeholder: filter slider ---
         filter_title = QLabel("VALUE THRESHOLD")

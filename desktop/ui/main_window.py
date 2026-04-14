@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 from PyQt5.QtCore import QUrl, Qt
@@ -13,16 +14,36 @@ from PyQt5.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QMainWindow,
+    QSplitter,
     QSizePolicy,
+    QLineEdit,
     QVBoxLayout,
     QWidget,
 )
+
+from map_config import map_boot_json
 
 from ui.directory_list import DirectoryListWidget
 from ui.map_bridge import MapBridge
 from ui.sidebar import LeftSidebar
 
 _MAP_INDEX = Path(__file__).resolve().parent.parent / "map" / "index.html"
+
+
+def _map_page_html_with_config() -> tuple[str, QUrl]:
+    """Inline ``window.__MAP_CONFIG__`` so the map script sees keys before it runs."""
+    raw = _MAP_INDEX.read_text(encoding="utf-8")
+    cfg = json.dumps(map_boot_json(), separators=(",", ":"))
+    inject = f"<script>window.__MAP_CONFIG__={cfg};</script>\n"
+    if "</head>" in raw:
+        html = raw.replace("</head>", inject + "</head>", 1)
+    else:
+        html = inject + raw
+    map_dir = _MAP_INDEX.parent.resolve()
+    base_path = str(map_dir)
+    if not base_path.endswith(os.sep):
+        base_path += os.sep
+    return html, QUrl.fromLocalFile(base_path)
 
 
 class MainWindow(QMainWindow):
@@ -42,16 +63,33 @@ class MainWindow(QMainWindow):
         self._web_view: QWebEngineView | None = None
         self._map_bridge: MapBridge | None = None
 
-        root.addWidget(self._build_left_panel())
-        root.addWidget(self._build_center_panel(), stretch=1)
-        root.addWidget(self._build_right_panel())
+        splitter = QSplitter(Qt.Horizontal)
+        splitter.setObjectName("mainSplitter")
+        splitter.setChildrenCollapsible(False)
+        splitter.setHandleWidth(8)
+
+        left = self._build_left_panel()
+        center = self._build_center_panel()
+        right = self._build_right_panel()
+
+        splitter.addWidget(left)
+        splitter.addWidget(center)
+        splitter.addWidget(right)
+        splitter.setStretchFactor(0, 0)
+        splitter.setStretchFactor(1, 1)
+        splitter.setStretchFactor(2, 0)
+
+        # Reasonable defaults that still allow the user to resize/collapse.
+        splitter.setSizes([320, 900, 420])
+        root.addWidget(splitter, stretch=1)
 
     def _build_left_panel(self) -> QFrame:
         glass = QFrame()
         glass.setObjectName("glassPanelLeft")
-        glass.setFixedWidth(320)
+        glass.setMinimumWidth(260)
+        glass.setMaximumWidth(420)
         glass.setFrameShape(QFrame.NoFrame)
-        glass.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding)
+        glass.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
 
         layout = QVBoxLayout(glass)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -118,7 +156,7 @@ class MainWindow(QMainWindow):
 
         self._web_view = QWebEngineView()
         self._web_view.setObjectName("mapWebView")
-        self._web_view.setStyleSheet("background-color: #050505; border: none;")
+        self._web_view.setStyleSheet("background-color: #e8e4e0; border: none;")
         self._web_view.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
         page = self._web_view.page()
@@ -134,7 +172,8 @@ class MainWindow(QMainWindow):
 
         inner.addWidget(self._web_view, stretch=1)
 
-        self._web_view.load(QUrl.fromLocalFile(str(_MAP_INDEX.resolve())))
+        html, base_url = _map_page_html_with_config()
+        self._web_view.setHtml(html, base_url)
 
         outer_l.addWidget(map_frame, stretch=1)
         return outer
@@ -173,12 +212,28 @@ class MainWindow(QMainWindow):
             f"highlightMarkerOnMap({json.dumps(marker_id)}, {{ fly: {fly_js} }});"
         )
 
+    def set_city_boundary(self, geojson_obj: dict | None, *, fit: bool = True) -> None:
+        """Python → JS: render a single city's boundary polygon (GeoJSON)."""
+        if self._web_view is None:
+            return
+        if geojson_obj is None:
+            self._web_view.page().runJavaScript(
+                "typeof clearCityBoundary === 'function' && clearCityBoundary();"
+            )
+            return
+        payload = json.dumps(geojson_obj)
+        fit_js = "true" if fit else "false"
+        self._web_view.page().runJavaScript(
+            f"typeof setCityBoundary === 'function' && setCityBoundary({payload}, {{ fit: {fit_js} }});"
+        )
+
     def _build_right_panel(self) -> QFrame:
         glass = QFrame()
         glass.setObjectName("glassPanelRight")
-        glass.setFixedWidth(440)
+        glass.setMinimumWidth(320)
+        glass.setMaximumWidth(560)
         glass.setFrameShape(QFrame.NoFrame)
-        glass.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding)
+        glass.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
 
         layout = QVBoxLayout(glass)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -193,6 +248,11 @@ class MainWindow(QMainWindow):
         title = QLabel("Directory")
         title.setObjectName("titleDirectory")
         head_lay.addWidget(title)
+
+        self.edit_directory_filter = QLineEdit()
+        self.edit_directory_filter.setObjectName("lineEditElite")
+        self.edit_directory_filter.setPlaceholderText("Filter directory by city…")
+        head_lay.addWidget(self.edit_directory_filter)
 
         self.label_record_count = QLabel("0 Records Found")
         self.label_record_count.setObjectName("labelRecordCount")

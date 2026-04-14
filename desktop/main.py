@@ -5,10 +5,11 @@ from __future__ import annotations
 import csv
 import json
 import sys
+import threading
 import uuid
 from pathlib import Path
 
-from PyQt5.QtCore import QObject, Qt
+from PyQt5.QtCore import QCoreApplication, QObject, Qt
 from PyQt5.QtWebEngineWidgets import QWebEngineView  # noqa: F401 — init WebEngine before QApplication
 from PyQt5.QtWidgets import QApplication, QFileDialog, QMessageBox
 
@@ -21,11 +22,13 @@ from utils.dataset_ops import (
     sort_points,
 )
 from utils.parser import parse_csv, parse_json, parse_value_field
-
-DEMO_MAP_POINTS: list[dict[str, object]] = [
-    {"id": "1", "city": "London", "lat": 51.5, "lng": -0.09, "value": 80},
-    {"id": "2", "city": "New York", "lat": 40.7, "lng": -74.0, "value": 60},
-]
+from utils.boundaries import load_boundary_geojson_for_city, save_boundary_geojson_for_city
+from utils.boundary_fetch import (
+    boundary_covers_points,
+    fetch_city_boundary_geojson,
+    generate_fallback_polygon,
+)
+from utils.geocode import geocode_pk_city
 
 
 def load_stylesheet() -> str:
@@ -47,6 +50,7 @@ class AppController(QObject):
         self._filtered: list[DataPoint] = []
         self.selected_point_id: str | None = None
         self._syncing_table_from_map = False
+        self._boundary_inflight: set[str] = set()
 
         wv = window.web_view
         if wv is not None:
@@ -63,10 +67,15 @@ class AppController(QObject):
         sb.btn_upload_file.clicked.connect(self._on_file_upload)
         sb.btn_add_manual.clicked.connect(self._on_add_manual)
         sb.btn_export_filtered.clicked.connect(self._export_filtered)
+        if hasattr(sb, "btn_search_city"):
+            sb.btn_search_city.clicked.connect(self._on_search_city_clicked)
 
         sm = window.data_table.selectionModel()
         if sm is not None:
             sm.selectionChanged.connect(self._on_table_selection_changed)
+
+        if hasattr(window, "edit_directory_filter") and window.edit_directory_filter is not None:
+            window.edit_directory_filter.textChanged.connect(lambda *_: self._update_table())
 
     @property
     def filtered_dataset(self) -> list[DataPoint]:
@@ -77,9 +86,46 @@ class AppController(QObject):
             return
         print("Map loaded")
         self._apply_filters_and_update_map()
-        if not self.data:
-            self._window.send_map_dataset(DEMO_MAP_POINTS, None)
-            self._window.label_record_count.setText("2 Demo Points (no dataset loaded)")
+
+    def _on_search_city_clicked(self) -> None:
+        city = self._window.left_sidebar.edit_search.text().strip()
+        if not city:
+            return
+
+        def worker() -> None:
+            hit = geocode_pk_city(city)
+            if hit is None:
+                # Offline / rate-limited / network failure fallback:
+                # if the city exists in the dataset, fly to the centroid of its points.
+                key = city.strip().lower()
+                pts = [(float(p.lat), float(p.lng)) for p in self.data if (p.city or "").strip().lower() == key]
+                if not pts:
+                    return
+                lat = sum(p[0] for p in pts) / len(pts)
+                lng = sum(p[1] for p in pts) / len(pts)
+            else:
+                lat, lng, _display = hit
+
+            def apply_on_ui() -> None:
+                # Smooth camera movement to the searched city.
+                try:
+                    if self._window.web_view is not None:
+                        self._window.web_view.page().runJavaScript(
+                            f"typeof flyToLocation === 'function' && flyToLocation({lat}, {lng}, 12);"
+                        )
+                except Exception:
+                    pass
+                # Also refresh boundary for this city (best match for current dataset points).
+                self._update_boundary_for_city_search(city, float(lat), float(lng), city)
+
+            try:
+                from PyQt5.QtCore import QTimer
+
+                QTimer.singleShot(0, apply_on_ui)
+            except Exception:
+                apply_on_ui()
+
+        threading.Thread(target=worker, daemon=True).start()
 
     def _sort_field_and_desc(self) -> tuple[SortField, bool]:
         idx = self._window.left_sidebar.combo_sort.currentIndex()
@@ -91,9 +137,142 @@ class AppController(QObject):
             return ("city", False)
         return ("city", True)
 
+    @staticmethod
+    def _city_key(p: DataPoint) -> str:
+        c = (p.city or "").strip().lower()
+        return c if c else p.id
+
+    def _map_points_for_display(self, filtered: list[DataPoint], search: str) -> list[DataPoint]:
+        """
+        Clean map when nothing to show: no CSV → none; else pins for:
+        - the directory-selected row (always, if that row is in the current filter), and
+        - other cities matching a non-empty search (one pin per city).
+        """
+        if not self.data:
+            return []
+        seen: set[str] = set()
+        out: list[DataPoint] = []
+
+        if self.selected_point_id:
+            sel_pt = next((p for p in filtered if p.id == self.selected_point_id), None)
+            if sel_pt is not None:
+                seen.add(self._city_key(sel_pt))
+                out.append(sel_pt)
+
+        if search.strip():
+            for p in filtered:
+                ck = self._city_key(p)
+                if ck in seen:
+                    continue
+                seen.add(ck)
+                out.append(p)
+
+        return out
+
+    def _sync_map_and_boundary(self, filtered: list[DataPoint], search: str) -> None:
+        """Push markers + city outline without rebuilding the directory table."""
+        map_points = self._map_points_for_display(filtered, search)
+        map_sel = self._map_selection_id_for_pins(map_points, filtered)
+        self._window.send_map_dataset(
+            [p.to_dict() for p in map_points],
+            map_sel,
+        )
+        if not map_points:
+            self._window.set_city_boundary(None)
+        elif self.selected_point_id is not None:
+            self._update_boundary_for_selected()
+        elif search.strip():
+            # Search-only mode (no explicit selection): outline the first visible city's boundary.
+            p0 = map_points[0]
+            self._update_boundary_for_city_search(p0.city, float(p0.lat), float(p0.lng), search)
+        else:
+            # No selection and no active search → do not keep stale outlines.
+            self._window.set_city_boundary(None)
+
+    def _update_boundary_for_city_search(self, city: str, lat: float, lng: float, search: str) -> None:
+        """Outline boundary while user is searching (without selecting a specific point)."""
+        city_points_now = [
+            (float(p.lat), float(p.lng))
+            for p in self.data
+            if (p.city or "").strip().lower() == (city or "").strip().lower()
+        ]
+        gj = load_boundary_geojson_for_city(city)
+        if gj is not None:
+            # If cached boundary doesn't actually cover the city's points, refresh it.
+            if not city_points_now or boundary_covers_points(gj, city_points_now, min_fraction=0.85):
+                self._window.set_city_boundary(gj, fit=True)
+                return
+
+        self._window.set_city_boundary(None)
+        city_key = city.strip().lower()
+        if not city_key or city_key in self._boundary_inflight:
+            return
+        self._boundary_inflight.add(city_key)
+
+        search_key_at_start = search.strip().lower()
+
+        def worker() -> None:
+            fetched = None
+            try:
+                city_points = city_points_now
+                fetched = fetch_city_boundary_geojson(
+                    city,
+                    points_latlng=city_points or None,
+                    fallback_center=(lat, lng),
+                )
+                if fetched is None:
+                    fetched = generate_fallback_polygon(lat, lng, radius_km=4.0)
+                if fetched is not None:
+                    save_boundary_geojson_for_city(city, fetched)
+            finally:
+                def apply_if_still_searching() -> None:
+                    self._boundary_inflight.discard(city_key)
+                    # If user selected something since, do not override selection outline.
+                    if self.selected_point_id is not None:
+                        return
+                    cur_search = self._window.left_sidebar.edit_search.text().strip().lower()
+                    if cur_search != search_key_at_start:
+                        return
+                    fresh = load_boundary_geojson_for_city(city) or fetched
+                    if fresh is not None:
+                        self._window.set_city_boundary(fresh, fit=True)
+
+                try:
+                    from PyQt5.QtCore import QTimer
+
+                    QTimer.singleShot(0, apply_if_still_searching)
+                except Exception:
+                    apply_if_still_searching()
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _map_selection_id_for_pins(
+        self, map_points: list[DataPoint], filtered: list[DataPoint]
+    ) -> str | None:
+        """Highlight the on-map pin when the table row matches that pin or same city."""
+        if self.selected_point_id is None:
+            return None
+        on_map = {p.id for p in map_points}
+        if self.selected_point_id in on_map:
+            return self.selected_point_id
+        selected = next((p for p in filtered if p.id == self.selected_point_id), None)
+        if selected is None:
+            return None
+        key = self._city_key(selected)
+        for p in map_points:
+            if self._city_key(p) == key:
+                return p.id
+        return None
+
     def _update_table(self) -> None:
         """Rebuild directory rows from ``self._filtered`` only."""
-        self._window.data_table.set_filtered_points(self._filtered)
+        pts = list(self._filtered)
+        q = ""
+        if hasattr(self._window, "edit_directory_filter") and self._window.edit_directory_filter is not None:
+            q = self._window.edit_directory_filter.text().strip().lower()
+        if q:
+            pts = [p for p in pts if q in (p.city or "").strip().lower()]
+        self._window.data_table.set_filtered_points(pts)
 
     def _apply_filters_and_update_map(self) -> None:
         search = self._window.left_sidebar.edit_search.text()
@@ -118,13 +297,9 @@ class AppController(QObject):
             p.id == self.selected_point_id for p in filtered
         ):
             self.selected_point_id = None
+            self._window.set_city_boundary(None)
 
         self._update_table()
-
-        self._window.send_map_dataset(
-            [p.to_dict() for p in filtered],
-            self.selected_point_id,
-        )
 
         if self.selected_point_id is not None:
             self._syncing_table_from_map = True
@@ -132,6 +307,74 @@ class AppController(QObject):
                 self._window.data_table.select_row_by_id(self.selected_point_id)
             finally:
                 self._syncing_table_from_map = False
+
+        self._sync_map_and_boundary(filtered, search)
+
+    def _selected_point(self) -> DataPoint | None:
+        if not self.selected_point_id:
+            return None
+        for p in self.data:
+            if p.id == self.selected_point_id:
+                return p
+        return None
+
+    def _update_boundary_for_selected(self) -> None:
+        p = self._selected_point()
+        if p is None:
+            self._window.set_city_boundary(None)
+            return
+        # No strict polygon validation here (per your request to remove that recent change).
+        city_points_now = [
+            (float(pp.lat), float(pp.lng))
+            for pp in self.data
+            if (pp.city or "").strip().lower() == (p.city or "").strip().lower()
+        ]
+        gj = load_boundary_geojson_for_city(p.city)
+        if gj is not None:
+            if not city_points_now or boundary_covers_points(gj, city_points_now, min_fraction=0.85):
+                self._window.set_city_boundary(gj, fit=True)
+                return
+
+        self._window.set_city_boundary(None)
+        city_key = p.city.strip().lower()
+        if not city_key or city_key in self._boundary_inflight:
+            return
+        self._boundary_inflight.add(city_key)
+
+        selected_id_at_start = self.selected_point_id
+        city_at_start = p.city
+        lat_at_start = float(p.lat)
+        lng_at_start = float(p.lng)
+
+        def worker() -> None:
+            fetched = None
+            try:
+                city_points = city_points_now
+                fetched = fetch_city_boundary_geojson(
+                    city_at_start,
+                    points_latlng=city_points or None,
+                    fallback_center=(lat_at_start, lng_at_start),
+                )
+                if fetched is None:
+                    fetched = generate_fallback_polygon(lat_at_start, lng_at_start, radius_km=4.0)
+                if fetched is not None:
+                    save_boundary_geojson_for_city(city_at_start, fetched)
+            finally:
+                def apply_if_still_selected() -> None:
+                    self._boundary_inflight.discard(city_key)
+                    if self.selected_point_id != selected_id_at_start:
+                        return
+                    fresh = load_boundary_geojson_for_city(city_at_start) or fetched
+                    self._window.set_city_boundary(fresh, fit=True) if fresh is not None else None
+
+                try:
+                    from PyQt5.QtCore import QTimer
+
+                    QTimer.singleShot(0, apply_if_still_selected)
+                except Exception:
+                    apply_if_still_selected()
+
+        threading.Thread(target=worker, daemon=True).start()
 
     def _after_dataset_change(self) -> None:
         self._window.left_sidebar.set_filter_slider_maximum_from_dataset(max_value(self.data))
@@ -198,9 +441,49 @@ class AppController(QObject):
             else:
                 with Path(path).open("w", newline="", encoding="utf-8") as f:
                     w = csv.writer(f)
-                    w.writerow(["id", "city", "lat", "lng", "value"])
+                    w.writerow(
+                        [
+                            "id",
+                            "city",
+                            "lat",
+                            "lng",
+                            "value",
+                            "place_type",
+                            "place_name",
+                            "description",
+                            "image_url",
+                            "image_url_2",
+                            "address",
+                            "rating",
+                            "reviews",
+                            "hours",
+                            "open_status",
+                            "website",
+                            "sponsored",
+                        ]
+                    )
                     for p in self._filtered:
-                        w.writerow([p.id, p.city, p.lat, p.lng, p.value])
+                        w.writerow(
+                            [
+                                p.id,
+                                p.city,
+                                p.lat,
+                                p.lng,
+                                p.value,
+                                p.place_type,
+                                p.place_name,
+                                p.description,
+                                p.image_url,
+                                p.image_url_2,
+                                p.address,
+                                p.rating,
+                                p.reviews,
+                                p.hours,
+                                p.open_status,
+                                p.website,
+                                p.sponsored,
+                            ]
+                        )
         except OSError as exc:
             QMessageBox.warning(self._window, "Export failed", str(exc))
 
@@ -237,6 +520,7 @@ class AppController(QObject):
                 lat=lat,
                 lng=lng,
                 value=val,
+                place_name=city,
             )
         )
         self._after_dataset_change()
@@ -249,6 +533,8 @@ class AppController(QObject):
             self._window.data_table.select_row_by_id(marker_id)
         finally:
             self._syncing_table_from_map = False
+        search = self._window.left_sidebar.edit_search.text()
+        self._sync_map_and_boundary(self._filtered, search)
         self._window.highlight_marker_on_map(marker_id, fly=False)
 
     def _on_table_selection_changed(self, selected, deselected) -> None:
@@ -261,6 +547,8 @@ class AppController(QObject):
         rows = sm.selectedRows()
         if not rows:
             self.selected_point_id = None
+            search = self._window.left_sidebar.edit_search.text()
+            self._sync_map_and_boundary(self._filtered, search)
             self._window.highlight_marker_on_map("", fly=False)
             return
         row = rows[0].row()
@@ -272,10 +560,18 @@ class AppController(QObject):
             return
         rid_str = str(rid)
         self.selected_point_id = rid_str
+        search = self._window.left_sidebar.edit_search.text()
+        self._sync_map_and_boundary(self._filtered, search)
         self._window.highlight_marker_on_map(rid_str, fly=True)
 
 
 def main() -> None:
+    # Sharper map tiles / UI on high-DPI displays (fixes blurry Leaflet when zooming).
+    try:
+        QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+        QCoreApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
+    except Exception:
+        pass
     app = QApplication(sys.argv)
     app.setStyleSheet(load_stylesheet())
 

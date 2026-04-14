@@ -205,6 +205,27 @@ QPushButton#btnElite:focus {
     border: 1px solid rgba(212, 175, 55, 0.65);
 }
 
+/* ---- Search icon button (gold magnifier) ---- */
+QPushButton#btnSearchIcon {
+    background-color: rgba(212, 175, 55, 0.06);
+    border: 1px solid rgba(212, 175, 55, 0.55);
+    border-radius: 6px;
+    color: #D4AF37;
+    font-size: 18px;
+    font-weight: 600;
+    padding: 0;
+}
+
+QPushButton#btnSearchIcon:hover {
+    background-color: rgba(212, 175, 55, 0.12);
+    border: 1px solid #D4AF37;
+    color: #f5f2ed;
+}
+
+QPushButton#btnSearchIcon:pressed {
+    background-color: rgba(212, 175, 55, 0.18);
+}
+
 /* ---- Separators ---- */
 QFrame#dirSeparator {
     background-color: rgba(255, 255, 255, 0.06);
@@ -218,6 +239,34 @@ QFrame#dirSeparator {
 QScrollArea#dirScroll {
     background-color: transparent;
     border: none;
+}
+
+/* Hidden scrollbars: wheel / trackpad scrolling still works (Qt widgets, not web CSS). */
+QScrollArea#sidebarScroll QScrollBar:vertical,
+QScrollArea#dirScroll QScrollBar:vertical,
+QListWidget#directoryList QScrollBar:vertical {
+    width: 0px;
+    min-width: 0px;
+    max-width: 0px;
+    background: transparent;
+    border: none;
+    margin: 0px;
+}
+
+QScrollArea#sidebarScroll QScrollBar::handle:vertical,
+QScrollArea#dirScroll QScrollBar::handle:vertical,
+QListWidget#directoryList QScrollBar::handle:vertical {
+    min-height: 0px;
+    background: transparent;
+}
+
+QScrollArea#sidebarScroll QScrollBar::add-line:vertical,
+QScrollArea#sidebarScroll QScrollBar::sub-line:vertical,
+QScrollArea#dirScroll QScrollBar::add-line:vertical,
+QScrollArea#dirScroll QScrollBar::sub-line:vertical,
+QListWidget#directoryList QScrollBar::add-line:vertical,
+QListWidget#directoryList QScrollBar::sub-line:vertical {
+    height: 0px;
 }
 
 QWidget#dirScrollContent {

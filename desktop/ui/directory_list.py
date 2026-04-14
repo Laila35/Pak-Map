@@ -32,10 +32,7 @@ def _tier_label(value: float, vmin: float, vmax: float) -> str:
 
 
 def _display_title(p: DataPoint) -> str:
-    c = (p.city or "").strip()
-    if c:
-        return c
-    return f"Target {p.id[:8]}" if len(p.id) >= 4 else f"Target {p.id}"
+    return p.display_name()
 
 
 def _make_avatar_pixmap(seed: str, size: int = 48) -> QPixmap:
@@ -142,11 +139,13 @@ class DirectoryListWidget(QListWidget):
         self.setUniformItemSizes(True)
         self.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setFrameShape(QFrame.NoFrame)
         self.setSpacing(2)
         self.currentRowChanged.connect(self._sync_highlights)
 
-    def _sync_highlights(self, current: int, previous: int) -> None:
+    def _sync_highlights(self, current: int, _previous: int = -1) -> None:
+        """``QListWidget.currentRowChanged`` emits only ``current``; optional second arg for manual calls."""
         for i in range(self.count()):
             w = self.itemWidget(self.item(i))
             if isinstance(w, DirectoryRowWidget):

@@ -30,17 +30,33 @@ def tier_label(value: float, max_val: float) -> str:
     return "III"
 
 
+def _search_blob(p: DataPoint) -> str:
+    parts = (
+        p.city,
+        p.place_name,
+        p.description,
+        p.address,
+        p.place_type,
+        p.rating,
+        p.hours,
+        p.open_status,
+        p.website,
+        p.reviews,
+    )
+    return " ".join(x for x in parts if x).lower()
+
+
 def filter_points(
     points: list[DataPoint],
     *,
     search_query: str,
     min_value: float,
 ) -> list[DataPoint]:
-    """Substring match on city (case-insensitive) and minimum ``value``."""
+    """Substring match on city / place fields (case-insensitive) and minimum ``value``."""
     q = search_query.strip().lower()
     out: list[DataPoint] = []
     for p in points:
-        if q and q not in p.city.lower():
+        if q and q not in _search_blob(p):
             continue
         if p.value < min_value:
             continue

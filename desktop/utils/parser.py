@@ -19,10 +19,20 @@ _VALUE_KEYS = (
     "value",
     "population",
     "score",
-    "cgpa",
-    "iq score total",
-    "mustakbil score match",
 )
+_ID_KEYS = ("id",)
+_TYPE_KEYS = ("category", "type", "place_type", "poi_type", "icon")
+_NAME_KEYS = ("place_name", "title", "display_name")
+_DESC_KEYS = ("description", "details", "notes", "summary")
+_IMAGE_KEYS = ("image_url", "image", "photo", "picture", "thumbnail")
+_ADDRESS_KEYS = ("address", "addr", "location_address")
+_RATING_KEYS = ("rating", "stars", "score_display")
+_HOURS_KEYS = ("hours", "opening_hours", "open_hours", "times")
+_REVIEWS_KEYS = ("reviews", "review_count", "reviewcount", "num_reviews")
+_STATUS_KEYS = ("open_status", "status", "hours_status", "opens")
+_WEBSITE_KEYS = ("website", "url", "link", "web")
+_SPONSORED_KEYS = ("sponsored", "ad", "promoted")
+_IMAGE2_KEYS = ("image_url_2", "image2", "photo2", "thumbnail2")
 
 
 def _row_key_map(row: Mapping[str, Any]) -> dict[str, Any]:
@@ -105,6 +115,71 @@ def _extract_lng(row: Mapping[str, Any]) -> float | None:
     return _parse_float(_get_first(row, _LNG_KEYS))
 
 
+def _extract_optional_str(row: Mapping[str, Any], keys: tuple[str, ...]) -> str:
+    raw = _get_first(row, keys)
+    if raw is None:
+        return ""
+    return str(raw).strip()
+
+
+def _normalize_place_type(raw: str) -> str:
+    """Map CSV free text to a small set of icon keys used by the map."""
+    if not raw:
+        return "place"
+    s = raw.strip().lower().replace(" ", "_")
+    synonyms: dict[str, str] = {
+        "restaurant": "restaurant",
+        "food": "restaurant",
+        "cafe": "restaurant",
+        "café": "restaurant",
+        "dining": "restaurant",
+        "hospital": "hospital",
+        "clinic": "hospital",
+        "medical": "hospital",
+        "pharmacy": "pharmacy",
+        "university": "university",
+        "college": "university",
+        "school": "school",
+        "airport": "airport",
+        "park": "park",
+        "garden": "park",
+        "hotel": "hotel",
+        "lodging": "hotel",
+        "mosque": "mosque",
+        "temple": "mosque",
+        "church": "mosque",
+        "worship": "mosque",
+        "bank": "bank",
+        "shop": "shop",
+        "store": "shop",
+        "mall": "mall",
+        "hypermarket": "mall",
+        "shopping_mall": "mall",
+        "travel_agency": "travel_agency",
+        "travelagency": "travel_agency",
+        "travel_agencies": "travel_agency",
+        "travel": "travel_agency",
+        "tours": "travel_agency",
+        "hall": "hall",
+        "banquet": "hall",
+        "banquet_hall": "hall",
+        "marriage_hall": "hall",
+        "wedding_hall": "hall",
+        "museum": "museum",
+        "stadium": "stadium",
+        "parking": "parking",
+        "gas": "gas_station",
+        "fuel": "gas_station",
+        "gas_station": "gas_station",
+    }
+    return synonyms.get(s, s if s else "place")
+
+
+def _extract_place_type(row: Mapping[str, Any]) -> str:
+    raw = _extract_optional_str(row, _TYPE_KEYS)
+    return _normalize_place_type(raw)
+
+
 def _extract_value(row: Mapping[str, Any]) -> float | None:
     m = _row_key_map(row)
     for key in _VALUE_KEYS:
@@ -135,12 +210,33 @@ def row_to_datapoint(row: Mapping[str, Any]) -> DataPoint | None:
     if val is None:
         return None
 
+    raw_id = _get_first(row, _ID_KEYS)
+    id_str = str(raw_id).strip() if raw_id is not None else ""
+    if not id_str:
+        id_str = uuid.uuid4().hex[:12]
+
+    place_name = _extract_optional_str(row, _NAME_KEYS)
+    if not place_name:
+        place_name = city
+
     return DataPoint(
-        id=uuid.uuid4().hex[:12],
+        id=id_str,
         city=city,
         lat=lat,
         lng=lng,
         value=val,
+        place_type=_extract_place_type(row),
+        place_name=place_name,
+        description=_extract_optional_str(row, _DESC_KEYS),
+        image_url=_extract_optional_str(row, _IMAGE_KEYS),
+        image_url_2=_extract_optional_str(row, _IMAGE2_KEYS),
+        address=_extract_optional_str(row, _ADDRESS_KEYS),
+        rating=_extract_optional_str(row, _RATING_KEYS),
+        hours=_extract_optional_str(row, _HOURS_KEYS),
+        reviews=_extract_optional_str(row, _REVIEWS_KEYS),
+        open_status=_extract_optional_str(row, _STATUS_KEYS),
+        website=_extract_optional_str(row, _WEBSITE_KEYS),
+        sponsored=_extract_optional_str(row, _SPONSORED_KEYS),
     )
 
 

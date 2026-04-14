@@ -1,0 +1,242 @@
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: #e8eef2;
+  overflow: hidden; /* avoid page scrollbars; map remains draggable */
+}
+
+/* Hide scrollbars globally (native-app look) */
+* {
+  scrollbar-width: none;          /* Firefox */
+  -ms-overflow-style: none;       /* IE/Edge legacy */
+}
+*::-webkit-scrollbar {
+  display: none;                  /* Chrome/Safari */
+  width: 0;
+  height: 0;
+}
+
+#map {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.leaflet-container {
+  background: #e8eef2;
+  font-family: "Roboto", "Segoe UI", system-ui, sans-serif;
+}
+
+/* Google-Maps–like chrome: light controls, soft shadow */
+.leaflet-bar {
+  border: none !important;
+  border-radius: 8px !important;
+  box-shadow: 0 1px 4px rgba(60, 64, 67, 0.28) !important;
+  overflow: hidden;
+}
+.leaflet-bar a {
+  background: #fff !important;
+  color: #3c4043 !important;
+  border-bottom: 1px solid #e8eaed !important;
+  line-height: 30px !important;
+  width: 30px !important;
+  height: 30px !important;
+  font-size: 18px !important;
+}
+.leaflet-bar a:last-child {
+  border-bottom: none !important;
+}
+.leaflet-bar a:hover {
+  background: #f8f9fa !important;
+  color: #202124 !important;
+}
+
+.leaflet-control-layers {
+  background: rgba(0, 0, 0, 0.86) !important;
+  border: none !important;
+  border-radius: 8px !important;
+  box-shadow: 0 1px 4px rgba(60, 64, 67, 0.28) !important;
+  padding: 4px 6px !important;
+}
+.leaflet-control-layers-expanded {
+  padding: 8px 10px !important;
+}
+.leaflet-control-layers-toggle {
+  width: 36px !important;
+  height: 36px !important;
+  background: rgba(0, 0, 0, 0.86) !important;
+  border-radius: 8px !important;
+}
+.leaflet-control-layers,
+.leaflet-control-layers label,
+.leaflet-control-layers span {
+  color: #D4AF37 !important; /* gold text */
+}
+.leaflet-control-layers a {
+  color: #D4AF37 !important;
+}
+.leaflet-control-layers-separator {
+  border-top: 1px solid rgba(212, 175, 55, 0.28) !important;
+}
+.leaflet-control-layers input[type="radio"],
+.leaflet-control-layers input[type="checkbox"] {
+  accent-color: #D4AF37;
+}
+
+.leaflet-control-scale-line {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border: 1px solid #dadce0 !important;
+  border-radius: 4px !important;
+  color: #3c4043 !important;
+  font-size: 10px !important;
+  padding: 2px 6px !important;
+}
+
+/* White card popup (click) — className applies to .leaflet-popup */
+.leaflet-popup.map-popup-card .leaflet-popup-content-wrapper {
+  background: #ffffff !important;
+  border-radius: 10px !important;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35) !important;
+  padding: 0 !important;
+}
+.leaflet-popup.map-popup-card .leaflet-popup-content {
+  margin: 0 !important;
+}
+.leaflet-popup.map-popup-card .leaflet-popup-tip {
+  background: #ffffff !important;
+  box-shadow: none !important;
+}
+
+.map-card-inner {
+  padding: 14px 16px 16px 16px;
+  position: relative;
+  min-width: 220px;
+  max-width: 300px;
+}
+.map-card-media {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.map-card-img {
+  width: 44px;
+  height: 44px;
+  border-radius: 22px;
+  object-fit: cover;
+  border: 1px solid rgba(0, 0, 0, 0.10);
+  background: #f1f1f1;
+  filter: grayscale(1) contrast(1.05);
+  flex: 0 0 auto;
+}
+.map-card-img.is-hidden {
+  display: none;
+}
+.map-card-head {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.map-card-tier {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  color: #888888;
+  font-weight: 600;
+}
+.map-card-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #111111;
+  margin: 0 72px 8px 0;
+  line-height: 1.2;
+}
+.map-card-coords {
+  font-size: 12px;
+  color: #666666;
+  margin-bottom: 10px;
+  line-height: 1.35;
+}
+.map-card-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #b8860b;
+  letter-spacing: -0.02em;
+}
+
+/* Hover tooltip: follows cursor (sticky) — same visual language */
+.leaflet-tooltip.map-tooltip-card {
+  background: #ffffff !important;
+  color: #111111 !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.28) !important;
+  padding: 10px 12px !important;
+  font-size: 13px !important;
+  line-height: 1.45 !important;
+  max-width: 280px;
+}
+.leaflet-tooltip.map-tooltip-card::before {
+  border-top-color: #ffffff !important;
+}
+
+/* POI / Tag icon system (M/N shields, H hospitals, exploring points) */
+.tag-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 7px;
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+  border: 2px solid #ffffff;
+  user-select: none;
+  transform: translate3d(0,0,0);
+}
+.tag-icon.is-round {
+  min-width: 22px;
+  width: 22px;
+  padding: 0;
+  border-radius: 999px;
+}
+.tag-m {
+  background: #16a34a; /* green */
+  color: #ffffff;
+}
+.tag-n {
+  background: #1d4ed8; /* blue */
+  color: #ffffff;
+}
+.tag-h {
+  background: #ef4444; /* red */
+  color: #ffffff;
+}
+.tag-exp {
+  background: #a855f7; /* purple */
+  color: #ffffff;
+}
+
+/* Names: base black, hover blue */
+.poi-tooltip {
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 12px;
+}
+.poi-name {
+  color: #111111;
+  font-weight: 800;
+}
+.poi-name:hover {
+  color: #1d4ed8;
+}
+.poi-kind {
+  margin-top: 2px;
+  opacity: 0.75;
+  color: #111111;
+}
