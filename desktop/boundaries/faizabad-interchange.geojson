@@ -1,0 +1,1 @@
+{"type": "Feature", "properties": {"fallback": true, "source": "dataset_bbox"}, "geometry": {"type": "Polygon", "coordinates": [[[73.0379, 33.6744], [73.0579, 33.6744], [73.0579, 33.694399999999995], [73.0379, 33.694399999999995], [73.0379, 33.6744]]]}}

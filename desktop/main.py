@@ -31,8 +31,14 @@ from utils.boundary_fetch import (
 from utils.geocode import geocode_pk_query
 
 
+def _resource_root() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(getattr(sys, "_MEIPASS", Path.cwd()))
+    return Path(__file__).resolve().parent
+
+
 def load_stylesheet() -> str:
-    qss_path = Path(__file__).resolve().parent / "ui" / "styles.qss"
+    qss_path = _resource_root() / "ui" / "styles.qss"
     return qss_path.read_text(encoding="utf-8")
 
 
@@ -486,6 +492,7 @@ class AppController(QObject):
 
     def _on_add_manual(self) -> None:
         city = self._window.left_sidebar.edit_city.text().strip()
+        address = self._window.left_sidebar.edit_address.text().strip()
         lat_s = self._window.left_sidebar.edit_lat.text().strip()
         lng_s = self._window.left_sidebar.edit_lng.text().strip()
         val_s = self._window.left_sidebar.edit_value.text().strip()
@@ -526,6 +533,7 @@ class AppController(QObject):
                 lng=lng,
                 value=val,
                 place_name=city,
+                address=address,
             )
         )
         self._after_dataset_change()

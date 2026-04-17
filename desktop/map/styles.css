@@ -76,10 +76,15 @@ html, body {
 .leaflet-control-layers,
 .leaflet-control-layers label,
 .leaflet-control-layers span {
-  color: #D4AF37 !important; /* gold text */
+  color: #ffffff !important; /* white text */
+  font-size: 13px !important; /* increased text size */
+}
+.leaflet-control-layers span:hover {
+  color: #87CEEB !important; /* sky blue hover effect */
+  cursor: pointer;
 }
 .leaflet-control-layers a {
-  color: #D4AF37 !important;
+  color: #ffffff !important;
 }
 .leaflet-control-layers-separator {
   border-top: 1px solid rgba(212, 175, 55, 0.28) !important;
@@ -327,6 +332,11 @@ html, body {
   background: #a855f7; /* purple */
   color: #ffffff;
 }
+.tag-generic {
+  background: #0ea5e9; /* cool blue/cyan */
+  color: #ffffff;
+  font-size: 14px;
+}
 
 /* Names: base black, hover blue */
 .poi-tooltip {
@@ -344,4 +354,89 @@ html, body {
   margin-top: 2px;
   opacity: 0.75;
   color: #111111;
+}
+
+/* Theme Popup Styling */
+.theme-popup .leaflet-popup-content-wrapper {
+  background: rgba(10, 10, 10, 0.85);
+  backdrop-filter: blur(8px);
+  color: white;
+  border: 1px solid rgba(205, 164, 52, 0.5); /* Golden Border */
+  border-radius: 4px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
+}
+.theme-popup .leaflet-popup-tip {
+  background: rgba(10, 10, 10, 0.85);
+  border-top: 1px solid rgba(205, 164, 52, 0.5);
+  border-left: 1px solid rgba(205, 164, 52, 0.5);
+}
+.theme-popup .leaflet-popup-close-button {
+  color: #cda434 !important; /* Golden Close Button */
+}
+.theme-popup .leaflet-popup-close-button:hover {
+  color: #ffffff !important;
+}
+
+/* Global Close Button Styling */
+.leaflet-popup-close-button {
+  color: #cda434 !important;
+  font-size: 16px !important;
+  padding: 6px !important;
+}
+.leaflet-popup-close-button:hover {
+  color: #ffffff !important;
+}
+
+/* Theme Inner HTML Styling */
+.theme-inner-box {
+  border: 1px solid rgba(205, 164, 52, 0.3);
+  background: rgba(0,0,0,0.4);
+  padding: 10px;
+  margin-top: 8px;
+  border-radius: 4px;
+}
+.theme-header {
+  display: flex;
+  align-items: center;
+  margin: 6px 0;
+}
+.theme-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #e8eef2;
+  margin-right: 12px;
+  border: 2px solid #cda434;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.theme-avatar svg {
+  width: 100%;
+  height: 100%;
+}
+.theme-name {
+  color: #cda434;
+  font-weight: bold;
+  font-family: serif;
+  font-size: 17px;
+  margin: 0;
+  line-height: 1.2;
+}
+.theme-row {
+  margin-bottom: 4px;
+}
+.theme-row:last-child {
+  margin-bottom: 0;
+}
+.theme-label {
+  color: rgba(255,255,255,0.7);
+  font-size: 13px;
+  margin-right: 6px;
+}
+.theme-value {
+  color: #ffffff;
+  font-size: 13px;
 }

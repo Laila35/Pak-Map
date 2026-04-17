@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from pathlib import Path
 
 from PyQt5.QtCore import QUrl, Qt
@@ -27,19 +28,24 @@ from ui.directory_list import DirectoryListWidget
 from ui.map_bridge import MapBridge
 from ui.sidebar import LeftSidebar
 
-_MAP_INDEX = Path(__file__).resolve().parent.parent / "map" / "index.html"
+def _resource_root() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(getattr(sys, "_MEIPASS", Path.cwd()))
+    return Path(__file__).resolve().parent.parent
 
 
 def _map_page_html_with_config() -> tuple[str, QUrl]:
     """Inline ``window.__MAP_CONFIG__`` so the map script sees keys before it runs."""
-    raw = _MAP_INDEX.read_text(encoding="utf-8")
+    root = _resource_root()
+    raw = (root / "map" / "index.html").read_text(encoding="utf-8")
     cfg = json.dumps(map_boot_json(), separators=(",", ":"))
     inject = f"<script>window.__MAP_CONFIG__={cfg};</script>\n"
     if "</head>" in raw:
         html = raw.replace("</head>", inject + "</head>", 1)
     else:
         html = inject + raw
-    map_dir = _MAP_INDEX.parent.resolve()
+    root = _resource_root()
+    map_dir = (root / "map").resolve()
     base_path = str(map_dir)
     if not base_path.endswith(os.sep):
         base_path += os.sep
@@ -50,7 +56,8 @@ class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("DEEPDIVE")
-        self.setMinimumSize(900, 600)
+        self.setMinimumSize(1000, 700)
+        self._center_on_screen()
 
         central = QWidget()
         central.setObjectName("mainCentral")
@@ -176,8 +183,8 @@ class MainWindow(QMainWindow):
             "<span style='color:#D4AF37;font-style:italic;'>DIVE</span>"
         )
 
-        sub = QLabel("Global Intelligence Mapping")
-        sub.setObjectName("microLabel")
+        sub = QLabel("PREMIER MAPPING SOLUTIONS FOR PAKISTAN")
+        sub.setObjectName("titleSub")
 
         title_col.addWidget(brand)
         title_col.addSpacing(14)
@@ -300,15 +307,20 @@ class MainWindow(QMainWindow):
         head_lay.setContentsMargins(24, 22, 24, 18)
         head_lay.setSpacing(8)
 
-        title = QLabel("Directory")
+        title = QLabel()
         title.setObjectName("titleDirectory")
+        title.setTextFormat(Qt.RichText)
+        title.setText(
+            "<span style='color:#f5f2ed;'>DIRECT</span>"
+            "<span style='color:#D4AF37;font-style:italic;'>ORY</span>"
+        )
         # Enable :hover in QSS for this label
         title.setAttribute(Qt.WA_Hover, True)
         head_lay.addWidget(title)
 
         self.edit_directory_filter = QLineEdit()
         self.edit_directory_filter.setObjectName("lineEditElite")
-        self.edit_directory_filter.setPlaceholderText("Filter directory by city…")
+        self.edit_directory_filter.setPlaceholderText("FILTER DIRECTORY BY CITY…")
         head_lay.addWidget(self.edit_directory_filter)
 
         self.label_record_count = QLabel("0 Records Found")
@@ -333,3 +345,11 @@ class MainWindow(QMainWindow):
         layout.addWidget(body, stretch=1)
 
         return glass
+
+    def _center_on_screen(self) -> None:
+        """Move the window to the center of the primary screen."""
+        from PyQt5.QtWidgets import QDesktopWidget
+        qt_rect = self.frameGeometry()
+        center_point = QDesktopWidget().availableGeometry().center()
+        qt_rect.moveCenter(center_point)
+        self.move(qt_rect.topLeft())

@@ -20,7 +20,7 @@
   dm.markers = {}; // id -> L.Marker
 
   // Default marker accent for body/shading
-  dm.ACCENT = dm.cfg.markerAccent || '#000080';
+  dm.ACCENT = dm.cfg.markerAccent || '#ff0000';
 
   dm.cityThumbCache = {}; // normalizedCity -> url
 
@@ -40,16 +40,16 @@
   };
 
   dm.util.pinSvg = function (fill, selected) {
-    // Blue body, white outline, white center dot (stronger when selected).
-    var body = String(fill || dm.ACCENT || '#000080');
-    var stroke = '#ffffff';
+    // Red body, black outline, black center dot for a bold marker style.
+    var body = String(fill || dm.ACCENT || '#ff0000');
+    var stroke = '#000000';
     var strokeW = selected ? 3.0 : 2.4;
     var dotOpacity = selected ? 0.98 : 0.88;
     return (
       '<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 64 64" aria-hidden="true">' +
         '<path d="M32 2c-11.6 0-21 9.4-21 21 0 15.8 21 39 21 39s21-23.2 21-39C53 11.4 43.6 2 32 2z" ' +
           'fill="' + body + '" stroke="' + stroke + '" stroke-width="' + strokeW + '"/>' +
-        '<circle cx="32" cy="23" r="8.8" fill="#ffffff" fill-opacity="' + dotOpacity + '"/>' +
+        '<circle cx="32" cy="23" r="8.8" fill="#000000" fill-opacity="' + dotOpacity + '"/>' +
       '</svg>'
     );
   };

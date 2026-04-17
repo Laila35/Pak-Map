@@ -20,6 +20,21 @@
     return id.length >= 4 ? 'Target ' + id.substring(0, 8) : 'Target ' + id;
   }
 
+  function drawRoadLinks(latLngs) {
+    if (!latLngs || latLngs.length < 2) return;
+    var colors = ['#25b159', '#ef4444', '#facc15']; // Green, Red, Yellow
+    for (var i = 0; i < latLngs.length - 1; i++) {
+      var route = L.polyline([latLngs[i], latLngs[i + 1]], {
+        color: colors[i % colors.length],
+        weight: 5,
+        opacity: 0.85,
+        lineJoin: 'round',
+        smoothFactor: 1
+      });
+      dm.roadLayer.addLayer(route);
+    }
+  }
+
   function tierFor(v, vmin, vmax) {
     v = Number(v);
     if (!isFinite(v) || vmax <= vmin) return 'TIER II';
@@ -167,7 +182,8 @@
       className: 'map-popup-card',
       maxWidth: 340,
       autoPan: true,
-      autoPanPadding: [28, 28]
+      autoPanPadding: [28, 28],
+      closeButton: true
     });
     try { m.openPopup(); } catch (e) { /* ignore */ }
 
@@ -184,6 +200,7 @@
    */
   window.addMarkers = function (data, selectedId) {
     dm.markerLayer.clearLayers();
+    dm.roadLayer.clearLayers();
     dm.markers = {};
     if (!data || !data.length) return;
 
@@ -193,6 +210,7 @@
 
     var sel = selectedId != null && String(selectedId) !== '' ? String(selectedId) : null;
     var bounds = L.latLngBounds([]);
+    var roadPoints = [];
 
     data.forEach(function (p) {
       var pid = String(p.id);
@@ -214,13 +232,82 @@
       m.__wikiPromise = null;
       bounds.extend([lat, lng]);
 
+      // --- POPULATION SCATTER PLOT LOGIC ---
+      var popCount = Math.floor(Number(p.value));
+      if (!isFinite(popCount)) popCount = 0;
+      if (popCount > 300) popCount = 300; // Hard cap for performance
+
+      if (popCount > 0) {
+        var mFirstName = ["Ali", "Omar", "Bilal", "Hassan", "Usman", "Hamza", "Zayn", "Saad"];
+        var fFirstName = ["Sara", "Zara", "Ayesha", "Fatima", "Zainab", "Maryam", "Sana", "Hira"];
+        var lastNames = ["Khan", "Ahmed", "Ali", "Syed", "Hussain", "Shah", "Malik", "Iqbal"];
+        
+        for (var i = 0; i < popCount; i++) {
+          var sLat = lat + (Math.random() - 0.5) * 0.005;
+          var sLng = lng + (Math.random() - 0.5) * 0.005;
+          
+          var mockGender = Math.random() > 0.5 ? "Male" : "Female";
+          var fName = mockGender === "Male" ? mFirstName[Math.floor(Math.random() * mFirstName.length)] : fFirstName[Math.floor(Math.random() * fFirstName.length)];
+          var mockName = fName + " " + lastNames[Math.floor(Math.random() * lastNames.length)];
+          var mockAge = Math.floor(Math.random() * 50) + 18; // 18 to 67
+          var mockAddress = String(p.address || p.city || 'Default Location').trim();
+
+          var maleSvg = '<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><path d="M38 60v10c0 10 24 10 24 0v-10z" fill="#fff" stroke="#0a192f" stroke-width="3" stroke-linejoin="round"/><path d="M15 100c0-26 10-26 23-26 6 0 7 8 12 8 5 0 6-8 12-8 13 0 23 0 23 26z" fill="#0a192f" stroke="#0a192f" stroke-width="2"/><path d="M28 40c-5 0-6 12-1 14z" fill="#fff" stroke="#0a192f" stroke-width="3" stroke-linejoin="round"/><path d="M72 40c5 0 6 12 1 14z" fill="#fff" stroke="#0a192f" stroke-width="3" stroke-linejoin="round"/><path d="M29 35c0 36 42 36 42 0z" fill="#fff" stroke="#0a192f" stroke-width="3" stroke-linejoin="round"/><path d="M29 36C21 5 80 5 71 36C65 20 45 25 29 36Z" fill="#0a192f"/><path d="M58 14l3-8 4 6 5-7-2 9z" fill="#0a192f"/></svg>';
+          var femaleSvg = '<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><path d="M40 60v15c0 15 20 15 20 0v-15z" fill="#fff" stroke="#0a192f" stroke-width="3" stroke-linejoin="round"/><path d="M11 100c5-25 10-20 25-20 5 0 14 18 14 18s9-18 14-18c15 0 20-5 25 20z" fill="#0a192f" stroke="#0a192f" stroke-width="2"/><path d="M29 35c0 40 42 40 42 0z" fill="#fff" stroke="#0a192f" stroke-width="3" stroke-linejoin="round"/><path d="M50 8C15 8 10 45 12 70L30 65C28 45 28 30 50 30C72 30 72 45 70 65L88 70C90 45 85 8 50 8Z" fill="#0a192f"/><path d="M29 30C40 20 60 20 71 30C60 40 55 45 40 38C34 35 30 33 29 30Z" fill="#0a192f"/></svg>';
+          var avatarIcon = mockGender === "Male" ? maleSvg : femaleSvg;
+
+          // Green scattered marker
+          var sm = L.marker([sLat, sLng], {
+             icon: dm.util.placePinDivIcon(false, "#25b159"),
+             keyboard: false
+          }).addTo(dm.markerLayer);
+
+          // Build exact requested HTML structure
+          var sHtml = 
+            '<div style="padding: 4px; width: 220px;">' +
+              '<div class="theme-header">' +
+                '<div class="theme-avatar">' + avatarIcon + '</div>' +
+                '<div class="theme-name">' + __escapeHtml(mockName) + '</div>' +
+              '</div>' +
+              '<div class="theme-inner-box">' +
+                '<div class="theme-row"><span class="theme-label">Age:</span><span class="theme-value">' + mockAge + '</span></div>' +
+                '<div class="theme-row"><span class="theme-label">Gender:</span><span class="theme-value">' + __escapeHtml(mockGender) + '</span></div>' +
+                '<div class="theme-row"><span class="theme-label">Address:</span><span class="theme-value">' + __escapeHtml(mockAddress) + '</span></div>' +
+              '</div>' +
+            '</div>';
+
+          sm.bindPopup(sHtml, {
+             className: 'theme-popup',
+             maxWidth: 260,
+             closeButton: true,
+             autoPan: false
+          });
+          sm.on('mouseover', function () { try { this.openPopup(); } catch(e) {} });
+          sm.on('mouseout', function () { if (!this.__sticky) { try { this.closePopup(); } catch(e) {} } });
+          sm.on('click', function () { this.__sticky = true; try { this.openPopup(); } catch(e) {} });
+          sm.on('popupclose', function () { this.__sticky = false; });
+
+          // Draw the permanent green connecting line
+          L.polyline([[lat, lng], [sLat, sLng]], {
+            color: '#25b159',
+            weight: 2,
+            opacity: 0.6
+          }).addTo(dm.roadLayer);
+          
+          bounds.extend([sLat, sLng]);
+        }
+      }
+      // --- END SCATTER LOGIC ---
+
       // Bind exactly once. We update content in-place after fetching Wikipedia.
       m.bindPopup(popupHtml(p, vmin, vmax, null), {
         className: 'map-popup-card',
         maxWidth: 340,
-        autoPan: true,
-        autoPanPadding: [28, 28]
+        autoPan: false,
+        closeButton: true
       });
+      m.on('mouseover', function () { try { this.openPopup(); } catch(e) {} });
+      m.on('mouseout', function () { if (!this.__sticky) { try { this.closePopup(); } catch(e) {} } });
       m.on('popupopen', function (e) {
         // Fetch once per marker; update this same popup (no duplicate bind/open).
         if (m.__wikiApplied) return;
@@ -234,7 +321,10 @@
         }).catch(function () { /* ignore */ });
       });
 
+      m.on('popupclose', function () { this.__sticky = false; });
+
       m.on('click', function () {
+        this.__sticky = true;
         window.focusMarker(pid, { fly: true });
         if (window.bridge && typeof window.bridge.markerClicked === 'function') {
           window.bridge.markerClicked(pid);
@@ -242,7 +332,12 @@
       });
 
       dm.markers[pid] = m;
+      roadPoints.push([lat, lng]);
     });
+
+    if (roadPoints.length > 1) {
+      drawRoadLinks(roadPoints);
+    }
 
     if (bounds.isValid()) {
       dm.map.flyToBounds(bounds, { padding: [52, 52], duration: 1.5, maxZoom: 16 });

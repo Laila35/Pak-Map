@@ -41,7 +41,7 @@
     if (tags.office) return { cls: 'tag-icon tag-exp is-round', label: 'E' };
 
     // Default small dot-like tag (grey) if needed
-    return { cls: 'tag-icon', label: '•' };
+    return { cls: 'tag-icon is-round tag-generic', label: '📍' };
   }
 
   function divIconFor(spec) {
@@ -206,10 +206,15 @@
 
       m.bindPopup(
         poiPopupHtml(placeName, kind, null, true, ll, tags),
-        { className: 'map-popup-card', maxWidth: 320, autoPan: true, autoPanPadding: [28, 28] }
+        { className: 'map-popup-card', maxWidth: 320, autoPan: true, autoPanPadding: [28, 28], closeButton: true }
       );
 
+      m.on('mouseover', function () { try { this.openPopup(); } catch(e) {} });
+      m.on('mouseout', function () { if (!this.__sticky) { try { this.closePopup(); } catch(e) {} } });
+      m.on('popupclose', function () { this.__sticky = false; });
+
       m.on('click', function () {
+        this.__sticky = true;
         var targetZoom = Math.max(dm.map.getZoom(), 16);
         dm.map.flyTo(ll, targetZoom, { duration: 1.2 });
         dm.map.once('moveend', function () {

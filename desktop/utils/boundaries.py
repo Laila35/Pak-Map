@@ -7,11 +7,19 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-_BOUNDARIES_DIR = Path(__file__).resolve().parent.parent / "boundaries"
+
+def _resource_root() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(getattr(sys, "_MEIPASS", Path.cwd()))
+    return Path(__file__).resolve().parent.parent
+
+
+_BOUNDARIES_DIR = _resource_root() / "boundaries"
 
 
 def _slug_city(city: str) -> str:

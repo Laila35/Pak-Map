@@ -40,11 +40,12 @@ QLabel#compassRing {
 
 QLabel#titleBrand {
     font-family: "Cormorant Garamond", "Palatino Linotype", Georgia, "Times New Roman", serif;
-    font-size: 30px;
+    font-size: 24px;
     font-weight: 300;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.05em;
     line-height: 1.15;
     color: #f5f2ed;
+    text-transform: uppercase;
 }
 
 QLabel#titleDirectory {
@@ -52,11 +53,10 @@ QLabel#titleDirectory {
     font-size: 26px;
     font-weight: 300;
     letter-spacing: 0.01em;
-    color: #ffffff;
 }
 
 QLabel#titleDirectory:hover {
-    color: #87CEEB; /* sky blue */
+    opacity: 0.8;
 }
 
 /* ---- Right directory header ---- */
@@ -74,7 +74,18 @@ QLabel#microLabel {
     font-weight: 500;
     letter-spacing: 0.15em;
     text-transform: uppercase;
-    color: #888888;
+    color: #D4AF37;
+    padding-bottom: 2px;
+    margin-top: 4px;
+}
+
+QLabel#titleSub {
+    font-family: "Montserrat", "Segoe UI", sans-serif;
+    font-size: 8px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #ffffff;
 }
 
 QLabel#labelRecordCount {
@@ -98,16 +109,17 @@ QLabel#sidebarEmptyHint {
 
 QLabel#microLabelAccent {
     font-family: "Montserrat", "Segoe UI", sans-serif;
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 500;
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: #D4AF37;
+    margin-top: 6px;
 }
 
 QLabel#sectionTitle {
     font-family: "Montserrat", "Segoe UI", sans-serif;
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 600;
     letter-spacing: 0.14em;
     text-transform: uppercase;
@@ -156,13 +168,13 @@ QLabel#mapPlaceholder {
 /* ---- Inputs (elite underline) ---- */
 QLineEdit#lineEditElite {
     font-family: "Montserrat", "Segoe UI", sans-serif;
-    font-size: 13px;
-    color: #f5f2ed;
+    font-size: 14px;
+    color: #ffffff;
     background-color: transparent;
     border: none;
     border-bottom: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 0;
-    padding: 10px 0 12px 0;
+    padding: 2px 0 10px 0;
     min-height: 22px;
     selection-background-color: #D4AF37;
     selection-color: #050505;
@@ -207,6 +219,102 @@ QPushButton#btnElite:pressed {
 QPushButton#btnElite:focus {
     outline: none;
     border: 1px solid rgba(212, 175, 55, 0.65);
+}
+
+/* ---- Upload Area ---- */
+QPushButton#btnUploadArea {
+    font-family: "Montserrat", "Segoe UI", sans-serif;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background-color: #0c0c0c;
+    border-radius: 6px;
+    padding: 0px;
+}
+QPushButton#btnUploadArea:hover {
+    border-color: rgba(205, 164, 52, 0.5);
+    background-color: rgba(205, 164, 52, 0.08);
+}
+
+QLabel#uploadIconArrow {
+    color: #cda434;
+    font-family: "Segoe UI", sans-serif;
+    font-size: 28px;
+    font-weight: 300;
+}
+QLabel#uploadIconBracket {
+    border: 3px solid #cda434;
+    border-top: none;
+    border-radius: 1px;
+}
+QLabel#uploadTitle {
+    color: #ffffff;
+    font-family: "Montserrat", "Segoe UI", sans-serif;
+    font-size: 16px;
+    font-weight: 500;
+}
+QLabel#uploadSub {
+    color: #888888;
+    font-family: "Montserrat", "Segoe UI", sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    font-weight: 600;
+}
+
+/* ---- Tabs (File Upload / Manual) ---- */
+QPushButton#btnTabActive {
+    font-family: "Montserrat", "Segoe UI", sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    color: #ffffff;
+    background-color: transparent;
+    border: none;
+    border-bottom: 2px solid #cda434;
+    padding: 12px 10px;
+    text-align: center;
+}
+QPushButton#btnTabActive:focus {
+    outline: none;
+}
+
+QPushButton#btnTabInactive {
+    font-family: "Montserrat", "Segoe UI", sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    color: #ffffff;
+    background-color: transparent;
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 12px 10px;
+    text-align: center;
+}
+QPushButton#btnTabInactive:hover {
+    color: #cda434;
+}
+QPushButton#btnTabInactive:focus {
+    outline: none;
+}
+
+QStackedWidget#ingestStack {
+    background: transparent;
+}
+
+/* ---- Append Record Button ---- */
+QPushButton#btnAppendRecord {
+    font-family: "Montserrat", "Segoe UI", sans-serif;
+    background-color: #050505;
+    color: #f5f2ed;
+    font-weight: 600;
+    padding: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    font-size: 11px;
+}
+QPushButton#btnAppendRecord:hover {
+    border-color: #cda434;
+    color: #cda434;
 }
 
 /* ---- Separators ---- */

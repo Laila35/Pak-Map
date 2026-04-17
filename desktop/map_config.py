@@ -3,7 +3,14 @@
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
+
+
+def _resource_root() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(getattr(sys, "_MEIPASS", Path.cwd()))
+    return Path(__file__).resolve().parent
 
 
 def _load_dotenv() -> None:
@@ -11,7 +18,7 @@ def _load_dotenv() -> None:
         from dotenv import load_dotenv
     except ImportError:
         return
-    env_path = Path(__file__).resolve().parent / ".env"
+    env_path = _resource_root() / ".env"
     load_dotenv(env_path)
 
 
@@ -46,8 +53,8 @@ else:
 
 def map_boot_json() -> dict[str, str]:
     """Inject into ``window.__MAP_CONFIG__`` for ``map/index.html``."""
-    # Keep a consistent modern accent across providers (no teal/green).
-    accent = "#000080"
+    # Keep a consistent modern accent across providers.
+    accent = "#ff0000"
     return {
         "mapProvider": MAP_PROVIDER,
         "googleMapsApiKey": GOOGLE_MAPS_API_KEY,
